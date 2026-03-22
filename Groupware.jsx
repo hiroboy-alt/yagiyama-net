@@ -97,8 +97,18 @@ const canWriteChannel = (ch, user) => {
   return false; // 本部役員の閲覧のみはfalse
 };
 
-// USERS: Firestoreのusersコレクションから読み込み（GroupwareApp内のstateで管理）
-// ※ ハードコードのダミーメンバーは削除済み
+const USERS = [
+  { id:"u1", name:"伊藤 宏明", nickname:"いとう", role:"会長",   avatar:"👑", grade:"3年", club:"サッカー部", district:"八木山本町" },
+  { id:"u2", name:"佐藤 花子", nickname:"さとう", role:"副会長", avatar:"🌸", grade:"2年", club:"吹奏楽部", district:"緑ヶ丘" },
+  { id:"u3", name:"田中 太郎", nickname:"たなか", role:"一般",   avatar:"👤", grade:"1年", club:"サッカー部", district:"八木山本町" },
+  { id:"u4", name:"鈴木 先生", nickname:"すずき", role:"先生",   avatar:"🎓", grade:"", club:"", district:"" },
+  { id:"u5", name:"山田 美咲", nickname:"やまだ", role:"一般",   avatar:"👩", grade:"1年", club:"バスケ部", district:"南町" },
+  { id:"u6", name:"高橋 健太", nickname:"たかはし", role:"一般", avatar:"👨", grade:"2年", club:"野球部", district:"緑ヶ丘" },
+  { id:"u7", name:"渡辺 由美", nickname:"わたなべ", role:"一般", avatar:"👩", grade:"2年", club:"吹奏楽部", district:"八木山東" },
+  { id:"u8", name:"中村 大輔", nickname:"なかむら", role:"一般", avatar:"👨", grade:"3年", club:"テニス部", district:"八木山南" },
+  { id:"u9", name:"小林 恵子", nickname:"こばやし", role:"委員長", avatar:"📋", grade:"1年", club:"美術部", district:"八木山本町" },
+  { id:"u10", name:"加藤 誠", nickname:"かとう", role:"一般", avatar:"👨", grade:"3年", club:"サッカー部", district:"南町" },
+];
 
 // 送り先カテゴリ（重要お知らせ用）
 const NOTICE_TARGETS = [
@@ -138,14 +148,32 @@ const EVENT_CATEGORIES = [
 ];
 const getCategoryById = (id) => EVENT_CATEGORIES.find(c=>c.id===id) || EVENT_CATEGORIES[0];
 
-const INITIAL_EVENTS = [];
+const INITIAL_EVENTS = [
+  { id:"ev1", date:"2026-05-15", title:"PTA総会",     category:"pta" },
+  { id:"ev2", date:"2026-05-22", title:"運営委員会",   category:"pta" },
+  { id:"ev3", date:"2026-06-03", title:"体育祭",       category:"school" },
+  { id:"ev4", date:"2026-06-10", title:"1年保護者会",   category:"school" },
+  { id:"ev5", date:"2026-07-18", title:"終業式",       category:"school" },
+  { id:"ev6", date:"2026-07-19", title:"夏休み開始",   category:"holiday" },
+  { id:"ev7", date:"2026-05-25", title:"サッカー部大会", category:"club" },
+  { id:"ev8", date:"2026-06-15", title:"地区清掃活動", category:"district" },
+];
 
-const INITIAL_NOTICES = [];
+const INITIAL_NOTICES = [
+  { id:"n1", title:"5月PTA総会のお知らせ", body:"5月15日（木）19時より、八木山中学校体育館にてPTA総会を開催します。会員の皆様はご出席いただきますようお願いします。出欠確認は5月10日までにご連絡ください。", author:"会長・伊藤", ts: Date.now()-3600000*3, important:true },
+  { id:"n2", title:"会費納入のお願い", body:"今年度のPTA会費の納入をお願いします。金額は年間3,000円です。5月末までに担任の先生へお渡しください。", author:"会計担当", ts: Date.now()-3600000*24, important:false },
+  { id:"n3", title:"ベルマーク収集のご協力を", body:"今月末までベルマークを収集しています。ご家庭にあるベルマークをお子様に持たせてください。", author:"広報委員会", ts: Date.now()-3600000*48, important:false },
+];
 
 const INITIAL_MESSAGES = {
-  all: [],
+  all: [
+    { id:"m1", channelId:"all", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"皆さんこんにちは。PTAグループウェアへようこそ！", ts: Date.now()-3600000*2 },
+    { id:"m2", channelId:"all", userId:"u2", nickname:"さとう", avatar:"🌸", role:"副会長", text:"よろしくお願いします！", ts: Date.now()-3600000 },
+  ],
   grade1:[], grade2:[], grade3:[], club:[], district:[],
-  honbu:[],
+  honbu:[
+    { id:"m3", channelId:"honbu", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"本部役員の皆さん、今月の会議は15日（木）19時からです。", ts: Date.now()-7200000 },
+  ],
   unei:[],
 };
 
@@ -185,6 +213,39 @@ async function downloadExcel(sheetData, fileName) {
 }
 
 // ============================================================
+// ログイン画面
+// ============================================================
+function LoginScreen({ onLogin }) {
+  const [sel, setSel] = useState(null);
+  return (
+    <div style={{ height:"100svh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"linear-gradient(160deg,#0f172a 0%,#1e293b 60%,#0f2744 100%)", padding:24, fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif" }}>
+      <style>{CSS}</style>
+      <div style={{ marginBottom:28, textAlign:"center" }}>
+        <div style={{ fontSize:52, marginBottom:10 }}>💬</div>
+        <div style={{ fontWeight:900, fontSize:26, color:"white", letterSpacing:3 }}>グループウェア</div>
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginTop:6, letterSpacing:1 }}>八木山中学校PTA</div>
+      </div>
+      <div style={{ width:"100%", maxWidth:400, background:"rgba(255,255,255,0.06)", backdropFilter:"blur(20px)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:24, padding:"24px 20px" }}>
+        <p style={{ margin:"0 0 14px", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.4)", letterSpacing:1 }}>アカウントを選択</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
+          {USERS.map(u=>(
+            <div key={u.id} onClick={()=>setSel(u)} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:14, border:`2px solid ${sel?.id===u.id?"#38bdf8":"rgba(255,255,255,0.08)"}`, background:sel?.id===u.id?"rgba(56,189,248,0.12)":"rgba(255,255,255,0.03)", cursor:"pointer" }}>
+              <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#334155,#475569)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{u.avatar}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, color:"white", fontSize:15 }}>{u.name}</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:2 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
+              </div>
+              {sel?.id===u.id && <div style={{ color:"#38bdf8", fontWeight:700, fontSize:18 }}>✓</div>}
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>sel&&onLogin(sel)} disabled={!sel} style={{ width:"100%", padding:16, borderRadius:14, border:"none", background:sel?"linear-gradient(135deg,#0284c7,#0369a1)":"rgba(255,255,255,0.08)", color:"white", fontWeight:800, fontSize:16, cursor:sel?"pointer":"not-allowed", boxShadow:sel?"0 4px 20px rgba(2,132,199,0.4)":"none" }}>ログイン →</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // 共通ヘッダー
 // ============================================================
 function Header({ title, onBack, onHome, right }) {
@@ -204,7 +265,7 @@ function Header({ title, onBack, onHome, right }) {
 // ============================================================
 // ホーム画面
 // ============================================================
-function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout, USERS }) {
+function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout }) {
   const latestNotice = notices[0];
   const totalUnread = Object.values(messages).reduce((a,b)=>a+b.length,0);
   const [showKiyaku, setShowKiyaku] = useState(false);
@@ -408,7 +469,7 @@ function MiniCalendar({ events = [] }) {
 // ============================================================
 // お知らせ一覧・詳細
 // ============================================================
-function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits, USERS }) {
+function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits }) {
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showReadList, setShowReadList] = useState(false);
@@ -1978,7 +2039,7 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
 // ============================================================
 // 管理者設定画面
 // ============================================================
-function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels, setChannels, documents, setDocuments, publishForms, setPublishForms, USERS }) {
+function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels, setChannels, documents, setDocuments, publishForms, setPublishForms }) {
   const [tab, setTab] = useState("calendar");
   const [importMsg, setImportMsg] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -2001,22 +2062,6 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
   // --- メンバー絞り込み ---
   const [memberFilterCh, setMemberFilterCh] = useState(null);
   const [memberFilterSub, setMemberFilterSub] = useState(null);
-  const [selectedMember, setSelectedMember] = useState(null); // メンバー詳細表示用
-  const [confirmDelete, setConfirmDelete] = useState(null); // 削除確認用
-
-  const isHonbu = HONBU_ROLES.includes(currentUser.role);
-
-  // メンバー削除（FirestoreのusersコレクションとAuthから削除）
-  const handleDeleteMember = async (userId) => {
-    try {
-      await deleteDoc(doc(db, "users", userId));
-      setConfirmDelete(null);
-      setSelectedMember(null);
-    } catch (e) {
-      console.error("メンバー削除エラー:", e);
-      alert("削除に失敗しました: " + e.message);
-    }
-  };
 
   // --- 文書発行 ---
   // publishNav: 階層ナビ ["committee","unor_1","sidai"] のような配列
@@ -2793,14 +2838,13 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                   <div key={role} style={{ marginBottom:14 }}>
                     <div style={{ fontSize:12, fontWeight:800, color:"#d97706", marginBottom:6, padding:"3px 10px", background:"#fffbeb", borderRadius:6, display:"inline-block" }}>{role}（{users.length}名）</div>
                     {users.map(u => (
-                      <div key={u.id} onClick={()=>isHonbu&&setSelectedMember(u)} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3, cursor:isHonbu?"pointer":"default" }}>
+                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3 }}>
                         <span style={{ fontSize:20 }}>{u.avatar}</span>
                         <div style={{ flex:1 }}>
                           <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{u.name}</div>
                           <div style={{ fontSize:10, color:"#94a3b8" }}>{[u.grade, u.club, u.district].filter(Boolean).join(" / ")}</div>
                         </div>
                         <div style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4, fontWeight:600 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
-                        {isHonbu && <span style={{ fontSize:12, color:"#94a3b8" }}>›</span>}
                       </div>
                     ))}
                   </div>
@@ -2813,89 +2857,19 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                     {filtered.length === 0 ? (
                       <div style={{ textAlign:"center", color:"#94a3b8", fontSize:13, padding:"20px 0" }}>該当するメンバーがいません</div>
                     ) : filtered.map(u => (
-                      <div key={u.id} onClick={()=>isHonbu&&setSelectedMember(u)} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3, cursor:isHonbu?"pointer":"default" }}>
+                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3 }}>
                         <span style={{ fontSize:20 }}>{u.avatar}</span>
                         <div style={{ flex:1 }}>
                           <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{u.name}</div>
                           <div style={{ fontSize:10, color:"#94a3b8" }}>{[u.grade, u.club, u.district].filter(Boolean).join(" / ")}</div>
                         </div>
                         <div style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4, fontWeight:600 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
-                        {isHonbu && <span style={{ fontSize:12, color:"#94a3b8" }}>›</span>}
                       </div>
                     ))}
                   </div>
                 );
               }
             })()}
-
-            {/* メンバー詳細モーダル（本部役員のみ） */}
-            {selectedMember && isHonbu && (
-              <div onClick={()=>{setSelectedMember(null);setConfirmDelete(null);}} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-                <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:20, padding:"24px 20px", width:"100%", maxWidth:380, maxHeight:"80vh", overflow:"auto" }}>
-                  <div style={{ textAlign:"center", marginBottom:16 }}>
-                    <div style={{ fontSize:48, marginBottom:8 }}>{selectedMember.avatar}</div>
-                    <div style={{ fontWeight:800, fontSize:18, color:"#0f172a" }}>{selectedMember.name}</div>
-                    <div style={{ fontSize:13, color:"#64748b", marginTop:4 }}>{ROLES.find(r=>r.code===selectedMember.role)?.label || selectedMember.role}</div>
-                  </div>
-
-                  <div style={{ background:"#f8fafc", borderRadius:12, padding:16, marginBottom:12 }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:10 }}>登録情報</div>
-                    {[
-                      { label:"カテゴリ", value: selectedMember.category },
-                      { label:"メールアドレス", value: selectedMember.email },
-                      { label:"地区", value: selectedMember.district },
-                      { label:"役職", value: selectedMember.position },
-                      { label:"PTA役割", value: selectedMember.role },
-                    ].filter(item => item.value).map((item, i) => (
-                      <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #e5e7eb", fontSize:13 }}>
-                        <span style={{ color:"#64748b" }}>{item.label}</span>
-                        <span style={{ color:"#0f172a", fontWeight:600 }}>{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {selectedMember.children && selectedMember.children.length > 0 && (
-                    <div style={{ background:"#f0fdf4", borderRadius:12, padding:16, marginBottom:12 }}>
-                      <div style={{ fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:10 }}>お子さま情報</div>
-                      {selectedMember.children.map((child, i) => (
-                        <div key={i} style={{ padding:"8px 0", borderBottom: i < selectedMember.children.length - 1 ? "1px solid #d1fae5" : "none" }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{child.name}</div>
-                          <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
-                            {[child.school, child.grade, child.class_, child.club].filter(Boolean).join(" / ")}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {selectedMember.createdAt && (
-                    <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", marginBottom:12 }}>
-                      登録日: {new Date(selectedMember.createdAt).toLocaleDateString("ja-JP")}
-                    </div>
-                  )}
-
-                  {/* 削除ボタン（本部役員のみ、自分自身は削除不可） */}
-                  {selectedMember.id !== currentUser.id && (
-                    <div>
-                      {confirmDelete === selectedMember.id ? (
-                        <div style={{ background:"#fef2f2", borderRadius:12, padding:16, textAlign:"center" }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#dc2626", marginBottom:10 }}>「{selectedMember.name}」を削除しますか？</div>
-                          <div style={{ fontSize:11, color:"#64748b", marginBottom:12 }}>この操作は取り消せません</div>
-                          <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
-                            <button onClick={()=>setConfirmDelete(null)} style={{ padding:"8px 20px", borderRadius:8, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:13, cursor:"pointer" }}>キャンセル</button>
-                            <button onClick={()=>handleDeleteMember(selectedMember.id)} style={{ padding:"8px 20px", borderRadius:8, border:"none", background:"#dc2626", color:"white", fontWeight:700, fontSize:13, cursor:"pointer" }}>削除する</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button onClick={()=>setConfirmDelete(selectedMember.id)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"2px solid #fecaca", background:"#fef2f2", color:"#dc2626", fontWeight:700, fontSize:13, cursor:"pointer" }}>🗑 このメンバーを削除</button>
-                      )}
-                    </div>
-                  )}
-
-                  <button onClick={()=>{setSelectedMember(null);setConfirmDelete(null);}} style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:"#f1f5f9", color:"#64748b", fontWeight:700, fontSize:14, cursor:"pointer", marginTop:12 }}>閉じる</button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -4881,7 +4855,7 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   );
 }
 
-function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, USERS }) {
+function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome }) {
   const [tab, setTab] = useState("channels");
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeDM, setActiveDM] = useState(null);
@@ -5082,34 +5056,6 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     };
   });
   const [screen, setScreen] = useState("home");
-
-  // Firestore: usersコレクションからメンバー一覧をリアルタイム読み込み
-  const [USERS, setUSERS] = useState([]);
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "users"), (snap) => {
-      const data = snap.docs.map(d => {
-        const raw = d.data();
-        return {
-          id: d.id,
-          name: raw.name || "ユーザー",
-          nickname: (raw.name || "ユーザー").split(" ")[0],
-          role: raw.role || raw.ptaRole || "一般",
-          avatar: raw.category === "先生" ? "🎓" : raw.category === "地域" ? "🏘️" : "👤",
-          grade: raw.children?.[0]?.grade || "",
-          club: raw.children?.[0]?.club || "",
-          district: raw.district || "",
-          category: raw.category || "保護者",
-          email: raw.email || "",
-          position: raw.position || "",
-          children: raw.children || [],
-          createdAt: raw.createdAt || "",
-        };
-      });
-      setUSERS(data);
-    });
-    return unsub;
-  }, []);
-
   const [notices, setNoticesLocal] = useState([]);
 
   // Firestore: noticesをリアルタイム読み込み
@@ -5214,7 +5160,11 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   const [surveys, setSurveys] = useState([]);
   const [recruits, setRecruits] = useState([]);
   const [channels, setChannels] = useState(CHANNELS);
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState([
+    { id:"doc1", name:"PTA総会議事録テンプレート", category:"テンプレート", createdAt:"2026-04-01", author:"いとう" },
+    { id:"doc2", name:"令和8年度PTA活動計画書", category:"会議資料", createdAt:"2026-04-01", author:"いとう" },
+    { id:"doc3", name:"PTA会則", category:"規約・規程", createdAt:"2026-04-01", author:"いとう" },
+  ]);
   const [publishForms, setPublishForms] = useState({
     _activeNav: [],
   });
@@ -5247,11 +5197,11 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   return (
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
-      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} USERS={USERS}/>}
-      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} USERS={USERS}/>}
+      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }}/>}
+      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser}/>}
-      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} USERS={USERS}/>}
-      {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms} USERS={USERS}/>}
+      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")}/>}
+      {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms}/>}
     </div>
   );
 }
