@@ -204,13 +204,12 @@ function Header({ title, onBack, onHome, right }) {
 // ============================================================
 // ホーム画面
 // ============================================================
-function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout, USERS }) {
+function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout, USERS, kiyakuPdf, setKiyakuPdf }) {
   const latestNotice = notices[0];
   const totalUnread = Object.values(messages).reduce((a,b)=>a+b.length,0);
   const [showKiyaku, setShowKiyaku] = useState(false);
-  const [kiyakuPdf, setKiyakuPdf] = useState(null); // base64 dataUrl
 
-  // 規約PDF読み込み（初回のみ・ファイルが設定されていれば）
+  // 規約PDFアップロード
   const handleKiyakuUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -4886,7 +4885,7 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
   // アクセス可能なチャンネルのみ表示
   const visibleChannels = CHANNELS.filter(ch => canAccessChannel(ch, currentUser));
 
-  // DMカテゴリ定義 — 管理者画面のchannelsから動的生成
+  // DMカテゴリ定義 — 管理者画面のchannelsから動的生成（childrenが空ならUSERSから自動収集）
   const chFieldMap = { "学年":"grade", "部活":"club", "地区":"district" };
   const DM_CATEGORIES = [
     { id:"honbu_school", label:"本部役員・学校", icon:"👑", filter: u => HONBU_ROLES.includes(u.role) || SCHOOL_ROLES.includes(u.role) },
@@ -4894,14 +4893,22 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
     { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" || u.category==="先生" },
     { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般" || (!HONBU_ROLES.includes(u.role) && !SCHOOL_ROLES.includes(u.role) && u.role!=="委員長" && u.role!=="先生"),
       subs: channels
-        .filter(ch => ch.children && ch.children.length > 0 && chFieldMap[ch.name])
-        .map(ch => ({
-          id: `gen_${ch.id}`,
-          label: `${ch.name}から探す`,
-          icon: ch.icon,
-          groupBy: u => u[chFieldMap[ch.name]],
-          groups: ch.children.map(sub => sub.name),
-        }))
+        .filter(ch => chFieldMap[ch.name])
+        .map(ch => {
+          const fieldKey = chFieldMap[ch.name];
+          // childrenがあればそれを使い、なければUSERSのデータから自動収集
+          const groups = (ch.children && ch.children.length > 0)
+            ? ch.children.map(sub => sub.name)
+            : [...new Set(others.map(u => u[fieldKey]).filter(Boolean))].sort();
+          if (groups.length === 0) return null;
+          return {
+            id: `gen_${ch.id}`,
+            label: `${ch.name}から探す`,
+            icon: ch.icon,
+            groupBy: u => u[fieldKey],
+            groups,
+          };
+        }).filter(Boolean)
     },
   ];
 
@@ -5149,8 +5156,39 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       }
     }
   };
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
-  const [dmMessages, setDmMessages] = useState({});
+  const [messages, setMessagesLocal] = useState({});
+  const [dmMessages, setDmMessagesLocal] = useState({});
+
+  // Firestore: messagesをリアルタイム読み込み（単一ドキュメント方式）
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "messages"), (snap) => {
+      if (snap.exists()) setMessagesLocal(snap.data());
+    });
+    return unsub;
+  }, []);
+  const setMessages = (updater) => {
+    setMessagesLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "messages"), next).catch(e => console.error("Messages sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: dmMessagesをリアルタイム読み込み
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "dmMessages"), (snap) => {
+      if (snap.exists()) setDmMessagesLocal(snap.data());
+    });
+    return unsub;
+  }, []);
+  const setDmMessages = (updater) => {
+    setDmMessagesLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "dmMessages"), next).catch(e => console.error("DM sync error:", e));
+      return next;
+    });
+  };
+
   const [events, setEventsLocal] = useState([]);
   const eventsLoaded = useRef(false);
 
@@ -5179,8 +5217,6 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     try {
       const prevMap = new Map(prev.map(e => [e.id, e]));
       const nextIds = new Set(next.map(e => e.id));
-
-      // 差分のみ収集: 追加・更新されたもの + 削除されたもの
       const ops = [];
       for (const ev of next) {
         const old = prevMap.get(ev.id);
@@ -5194,8 +5230,6 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
         }
       }
       if (ops.length === 0) return;
-
-      // 500件ずつバッチ分割（Firestore上限）
       for (let i = 0; i < ops.length; i += 450) {
         const chunk = ops.slice(i, i + 450);
         const batch = writeBatch(db);
@@ -5214,15 +5248,115 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       console.error("Firestore sync error:", e);
     }
   };
-  const [surveys, setSurveys] = useState([]);
-  const [recruits, setRecruits] = useState([]);
-  const [channels, setChannels] = useState(CHANNELS);
-  const [documents, setDocuments] = useState([]);
-  const [publishForms, setPublishForms] = useState({
-    _activeNav: [],
-  });
-  // 閲覧記録: { noticeId: [{ userId, name }] }
-  const [readRecords, setReadRecords] = useState({});
+
+  // Firestore: surveys
+  const [surveys, setSurveysLocal] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "surveys"), (snap) => {
+      if (snap.exists()) setSurveysLocal(snap.data().list || []);
+    });
+    return unsub;
+  }, []);
+  const setSurveys = (updater) => {
+    setSurveysLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "surveys"), { list: next }).catch(e => console.error("Surveys sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: recruits
+  const [recruits, setRecruitsLocal] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "recruits"), (snap) => {
+      if (snap.exists()) setRecruitsLocal(snap.data().list || []);
+    });
+    return unsub;
+  }, []);
+  const setRecruits = (updater) => {
+    setRecruitsLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "recruits"), { list: next }).catch(e => console.error("Recruits sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: channels
+  const [channels, setChannelsLocal] = useState(CHANNELS);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "channels"), (snap) => {
+      if (snap.exists()) setChannelsLocal(snap.data().list || CHANNELS);
+    });
+    return unsub;
+  }, []);
+  const setChannels = (updater) => {
+    setChannelsLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "channels"), { list: next }).catch(e => console.error("Channels sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: documents
+  const [documents, setDocumentsLocal] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "documents"), (snap) => {
+      if (snap.exists()) setDocumentsLocal(snap.data().list || []);
+    });
+    return unsub;
+  }, []);
+  const setDocuments = (updater) => {
+    setDocumentsLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "documents"), { list: next }).catch(e => console.error("Documents sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: publishForms
+  const [publishForms, setPublishFormsLocal] = useState({ _activeNav: [] });
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "publishForms"), (snap) => {
+      if (snap.exists()) setPublishFormsLocal(snap.data());
+    });
+    return unsub;
+  }, []);
+  const setPublishForms = (updater) => {
+    setPublishFormsLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "publishForms"), next).catch(e => console.error("PublishForms sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: readRecords
+  const [readRecords, setReadRecordsLocal] = useState({});
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "readRecords"), (snap) => {
+      if (snap.exists()) setReadRecordsLocal(snap.data());
+    });
+    return unsub;
+  }, []);
+  const setReadRecords = (updater) => {
+    setReadRecordsLocal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      setDoc(doc(db, "appdata", "readRecords"), next).catch(e => console.error("ReadRecords sync error:", e));
+      return next;
+    });
+  };
+
+  // Firestore: kiyakuPdf（規約PDF）
+  const [kiyakuPdf, setKiyakuPdfLocal] = useState(null);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "appdata", "kiyakuPdf"), (snap) => {
+      if (snap.exists()) setKiyakuPdfLocal(snap.data().data || null);
+    });
+    return unsub;
+  }, []);
+  const setKiyakuPdf = (value) => {
+    setKiyakuPdfLocal(value);
+    setDoc(doc(db, "appdata", "kiyakuPdf"), { data: value }).catch(e => console.error("KiyakuPdf sync error:", e));
+  };
 
   if (!currentUser) { if (onBackToHome) onBackToHome(); return null; }
 
@@ -5250,7 +5384,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   return (
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
-      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} USERS={USERS}/>}
+      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} USERS={USERS} kiyakuPdf={kiyakuPdf} setKiyakuPdf={setKiyakuPdf}/>}
       {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} USERS={USERS}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser}/>}
       {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} USERS={USERS} channels={channels}/>}
