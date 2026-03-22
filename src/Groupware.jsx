@@ -226,8 +226,21 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
       <Header title="📜 PTA規約" onBack={()=>setShowKiyaku(false)}/>
       <div style={{ flex:1, overflow:"auto", padding:"16px" }}>
         {kiyakuPdf ? (
-          <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
-            <iframe src={kiyakuPdf} style={{ width:"100%", height:"calc(100svh - 140px)", border:"none" }} title="PTA規約"/>
+          <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:16 }}>
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              <a href={kiyakuPdf} download="PTA規約.pdf" style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#059669,#047857)", color:"white", fontWeight:700, fontSize:13, cursor:"pointer", textDecoration:"none", textAlign:"center", display:"block" }}>📥 PDFをダウンロード</a>
+              <button onClick={()=>{ window.open(kiyakuPdf, "_blank"); }} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:700, fontSize:13, cursor:"pointer" }}>🔎 新しいタブで開く</button>
+            </div>
+            <div style={{ border:"1px solid #e5e7eb", borderRadius:12, overflow:"hidden" }}>
+              <embed src={kiyakuPdf + "#toolbar=1&navpanes=1&scrollbar=1&view=FitH"} type="application/pdf" style={{ width:"100%", height:"calc(100svh - 240px)", display:"block" }}/>
+            </div>
+            <div style={{ marginTop:8, textAlign:"center" }}>
+              <div style={{ fontSize:11, color:"#94a3b8" }}>PDFが表示されない場合は「新しいタブで開く」または「ダウンロード」をご利用ください</div>
+              <label style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:8, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:12, cursor:"pointer", marginTop:8 }}>
+                📄 別のPDFに差し替え
+                <input type="file" accept="application/pdf" onChange={handleKiyakuUpload} style={{ display:"none" }}/>
+              </label>
+            </div>
           </div>
         ) : (
           <div style={{ background:"white", borderRadius:18, padding:"40px 20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", textAlign:"center" }}>
@@ -1862,10 +1875,6 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
         {/* 管理ボタン */}
         {isAdmin && (
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-            <label style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background: importLoading ? "#94a3b8" : "linear-gradient(135deg,#059669,#047857)", color:"white", fontWeight:800, fontSize:13, cursor: importLoading ? "wait" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, textAlign:"center" }}>
-              {importLoading ? "⏳ 読み込み中…" : "📥 CSVインポート"}
-              <input type="file" accept=".csv" onChange={handleImport} disabled={importLoading} style={{ display:"none" }}/>
-            </label>
             <button onClick={()=>openAddForm(null)} style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:800, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>＋ 予定追加</button>
           </div>
         )}
@@ -1957,19 +1966,6 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
           })()}
         </div>
 
-        {/* フォーマット説明 */}
-        {isAdmin && (
-          <div style={{ marginTop:16, background:"white", borderRadius:18, padding:"16px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontWeight:700, fontSize:13, color:"#64748b", marginBottom:8 }}>📋 CSVインポート対応形式</div>
-            <div style={{ fontSize:12, color:"#475569", lineHeight:1.8 }}>
-              <b style={{ color:"#059669" }}>① 健育カレンダー形式</b>（自動検出）<br/>
-              <span style={{ paddingLeft:12, display:"inline-block" }}>Excelの「名前を付けて保存→CSV」でOK</span><br/>
-              <b style={{ color:"#0284c7", marginTop:4, display:"inline-block" }}>② リスト形式</b><br/>
-              <span style={{ paddingLeft:12, display:"inline-block" }}>日付, 学校名, タイトル, カテゴリ</span><br/>
-              <span style={{ fontSize:11, color:"#94a3b8" }}>※ Shift_JIS / UTF-8 両対応。重複は自動スキップ。</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -4881,7 +4877,7 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   );
 }
 
-function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, USERS }) {
+function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, USERS, channels }) {
   const [tab, setTab] = useState("channels");
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeDM, setActiveDM] = useState(null);
@@ -4890,16 +4886,23 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
   // アクセス可能なチャンネルのみ表示
   const visibleChannels = CHANNELS.filter(ch => canAccessChannel(ch, currentUser));
 
-  // DMカテゴリ定義（一般会員はサブカテゴリ付き）
+  // DMカテゴリ定義 — 管理者画面のchannelsから動的生成
+  const chFieldMap = { "学年":"grade", "部活":"club", "地区":"district" };
   const DM_CATEGORIES = [
     { id:"honbu_school", label:"本部役員・学校", icon:"👑", filter: u => HONBU_ROLES.includes(u.role) || SCHOOL_ROLES.includes(u.role) },
     { id:"unei_member", label:"運営委員会", icon:"🏛️", filter: u => u.role==="委員長" },
-    { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" },
-    { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般", subs:[
-      { id:"gen_grade", label:"学年から探す", icon:"🎒", groupBy: u => u.grade, groups:["1年","2年","3年"] },
-      { id:"gen_club", label:"部活から探す", icon:"⚽", groupBy: u => u.club, groups:["サッカー部","野球部","バスケ部","バレー部","テニス部","吹奏楽部","美術部","科学部"] },
-      { id:"gen_district", label:"地区から探す", icon:"🏘️", groupBy: u => u.district, groups:["八木山本町","緑ヶ丘","南町","八木山東","八木山南"] },
-    ]},
+    { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" || u.category==="先生" },
+    { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般" || (!HONBU_ROLES.includes(u.role) && !SCHOOL_ROLES.includes(u.role) && u.role!=="委員長" && u.role!=="先生"),
+      subs: channels
+        .filter(ch => ch.children && ch.children.length > 0 && chFieldMap[ch.name])
+        .map(ch => ({
+          id: `gen_${ch.id}`,
+          label: `${ch.name}から探す`,
+          icon: ch.icon,
+          groupBy: u => u[chFieldMap[ch.name]],
+          groups: ch.children.map(sub => sub.name),
+        }))
+    },
   ];
 
   const others = USERS.filter(u=>u.id!==currentUser.id);
@@ -5250,7 +5253,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} USERS={USERS}/>}
       {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} USERS={USERS}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser}/>}
-      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} USERS={USERS}/>}
+      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} USERS={USERS} channels={channels}/>}
       {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms} USERS={USERS}/>}
     </div>
   );
