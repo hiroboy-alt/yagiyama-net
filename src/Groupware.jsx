@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { db } from "./firebase";
+import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, writeBatch } from "firebase/firestore";
 
 // 軽量CSVパーサー（引用符内改行対応）
 function parseCSVText(text) {
@@ -5054,10 +5056,107 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     };
   });
   const [screen, setScreen] = useState("home");
-  const [notices, setNotices] = useState(INITIAL_NOTICES);
+  const [notices, setNoticesLocal] = useState([]);
+
+  // Firestore: noticesをリアルタイム読み込み
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "notices"), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      setNoticesLocal(data);
+    });
+    return unsub;
+  }, []);
+
+  const noticesRef = useRef([]);
+  useEffect(() => { noticesRef.current = notices; }, [notices]);
+
+  const setNotices = (updater) => {
+    const prev = noticesRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    setNoticesLocal(next);
+    // Firestoreに差分同期
+    const prevIds = new Set(prev.map(n => n.id));
+    const nextIds = new Set(next.map(n => n.id));
+    // 追加
+    for (const n of next) {
+      if (!prevIds.has(n.id)) {
+        const { id, ...data } = n;
+        setDoc(doc(db, "notices", id), data).catch(e => console.error("Notice sync error:", e));
+      }
+    }
+    // 削除
+    for (const n of prev) {
+      if (!nextIds.has(n.id)) {
+        deleteDoc(doc(db, "notices", n.id)).catch(e => console.error("Notice delete error:", e));
+      }
+    }
+  };
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [dmMessages, setDmMessages] = useState({});
-  const [events, setEvents] = useState(INITIAL_EVENTS);
+  const [events, setEventsLocal] = useState([]);
+  const eventsLoaded = useRef(false);
+
+  // Firestore: eventsをリアルタイム読み込み
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "events"), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setEventsLocal(data);
+      eventsLoaded.current = true;
+    });
+    return unsub;
+  }, []);
+
+  // setEventsラッパー: ローカルstate更新 + Firestoreに差分書き込み
+  const eventsRef = useRef([]);
+  useEffect(() => { eventsRef.current = events; }, [events]);
+
+  const setEvents = (updater) => {
+    const prev = eventsRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    setEventsLocal(next);
+    syncEventsToFirestore(prev, next);
+  };
+
+  const syncEventsToFirestore = async (prev, next) => {
+    try {
+      const prevMap = new Map(prev.map(e => [e.id, e]));
+      const nextIds = new Set(next.map(e => e.id));
+
+      // 差分のみ収集: 追加・更新されたもの + 削除されたもの
+      const ops = [];
+      for (const ev of next) {
+        const old = prevMap.get(ev.id);
+        if (!old || old.date !== ev.date || old.title !== ev.title || old.category !== ev.category) {
+          ops.push({ type: "set", ev });
+        }
+      }
+      for (const ev of prev) {
+        if (!nextIds.has(ev.id)) {
+          ops.push({ type: "delete", ev });
+        }
+      }
+      if (ops.length === 0) return;
+
+      // 500件ずつバッチ分割（Firestore上限）
+      for (let i = 0; i < ops.length; i += 450) {
+        const chunk = ops.slice(i, i + 450);
+        const batch = writeBatch(db);
+        for (const op of chunk) {
+          const ref = doc(db, "events", op.ev.id);
+          if (op.type === "set") {
+            const { id, ...data } = op.ev;
+            batch.set(ref, data);
+          } else {
+            batch.delete(ref);
+          }
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      console.error("Firestore sync error:", e);
+    }
+  };
   const [surveys, setSurveys] = useState([]);
   const [recruits, setRecruits] = useState([]);
   const [channels, setChannels] = useState(CHANNELS);
