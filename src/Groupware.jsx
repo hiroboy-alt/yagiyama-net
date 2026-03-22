@@ -4883,20 +4883,23 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
   const [openCats, setOpenCats] = useState({}); // 折りたたみ制御
 
   // アクセス可能なチャンネルのみ表示
-  const visibleChannels = CHANNELS.filter(ch => canAccessChannel(ch, currentUser));
+  const visibleChannels = (channels || CHANNELS).filter(ch => canAccessChannel(ch, currentUser));
+
+  const others = USERS.filter(u=>u.id!==currentUser.id);
+  const toggleCat = (catId) => setOpenCats(prev => ({ ...prev, [catId]: !prev[catId] }));
 
   // DMカテゴリ定義 — 管理者画面のchannelsから動的生成（childrenが空ならUSERSから自動収集）
   const chFieldMap = { "学年":"grade", "部活":"club", "地区":"district" };
+  const safeChannels = channels || CHANNELS;
   const DM_CATEGORIES = [
     { id:"honbu_school", label:"本部役員・学校", icon:"👑", filter: u => HONBU_ROLES.includes(u.role) || SCHOOL_ROLES.includes(u.role) },
     { id:"unei_member", label:"運営委員会", icon:"🏛️", filter: u => u.role==="委員長" },
     { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" || u.category==="先生" },
     { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般" || (!HONBU_ROLES.includes(u.role) && !SCHOOL_ROLES.includes(u.role) && u.role!=="委員長" && u.role!=="先生"),
-      subs: channels
+      subs: safeChannels
         .filter(ch => chFieldMap[ch.name])
         .map(ch => {
           const fieldKey = chFieldMap[ch.name];
-          // childrenがあればそれを使い、なければUSERSのデータから自動収集
           const groups = (ch.children && ch.children.length > 0)
             ? ch.children.map(sub => sub.name)
             : [...new Set(others.map(u => u[fieldKey]).filter(Boolean))].sort();
@@ -4911,9 +4914,6 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
         }).filter(Boolean)
     },
   ];
-
-  const others = USERS.filter(u=>u.id!==currentUser.id);
-  const toggleCat = (catId) => setOpenCats(prev => ({ ...prev, [catId]: !prev[catId] }));
 
   // メンバー行の共通レンダー
   const renderMemberRow = (u, indent=64) => {
