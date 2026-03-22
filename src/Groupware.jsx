@@ -73,8 +73,23 @@ const CHANNELS = [
     { id:"grade2", name:"2年", icon:"2️⃣", desc:"2年生保護者・担当" },
     { id:"grade3", name:"3年", icon:"3️⃣", desc:"3年生保護者・担当" },
   ]},
-  { id:"club",     name:"部活",       icon:"⚽", desc:"部活動保護者", members:["all"], children:[] },
-  { id:"district", name:"地区",       icon:"🏘️", desc:"地区別連絡", members:["all"], children:[] },
+  { id:"club",     name:"部活",       icon:"⚽", desc:"部活動保護者", members:["all"], children:[
+    { id:"club_soccer", name:"サッカー部", icon:"⚽", desc:"サッカー部保護者" },
+    { id:"club_baseball", name:"野球部", icon:"⚾", desc:"野球部保護者" },
+    { id:"club_basketball", name:"バスケ部", icon:"🏀", desc:"バスケ部保護者" },
+    { id:"club_volleyball", name:"バレー部", icon:"🏐", desc:"バレー部保護者" },
+    { id:"club_tennis", name:"テニス部", icon:"🎾", desc:"テニス部保護者" },
+    { id:"club_brass", name:"吹奏楽部", icon:"🎺", desc:"吹奏楽部保護者" },
+    { id:"club_art", name:"美術部", icon:"🎨", desc:"美術部保護者" },
+    { id:"club_science", name:"科学部", icon:"🔬", desc:"科学部保護者" },
+  ]},
+  { id:"district", name:"地区",       icon:"🏘️", desc:"地区別連絡", members:["all"], children:[
+    { id:"dist_yagiyama", name:"八木山本町", icon:"🏠", desc:"八木山本町地区" },
+    { id:"dist_midorigaoka", name:"緑ヶ丘", icon:"🏠", desc:"緑ヶ丘地区" },
+    { id:"dist_minamimachi", name:"南町", icon:"🏠", desc:"南町地区" },
+    { id:"dist_higashi", name:"八木山東", icon:"🏠", desc:"八木山東地区" },
+    { id:"dist_minami", name:"八木山南", icon:"🏠", desc:"八木山南地区" },
+  ]},
   { id:"honbu",    name:"本部役員",   icon:"👑", desc:"会長・副会長・監事・幹事等", members:["honbu"], children:[] },
   { id:"unei",     name:"運営委員会", icon:"🏛️", desc:"本部役員＋実行委員", members:["unei"], children:[] },
 ];
@@ -5302,11 +5317,23 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     });
   };
 
-  // Firestore: channels
+  // Firestore: channels（保存済みデータにchildrenがない場合はデフォルトから補完）
   const [channels, setChannelsLocal] = useState(CHANNELS);
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "appdata", "channels"), (snap) => {
-      if (snap.exists()) setChannelsLocal(snap.data().list || CHANNELS);
+      if (snap.exists()) {
+        const saved = snap.data().list || CHANNELS;
+        // デフォルトCHANNELSのchildrenを補完（保存済みデータにchildrenがない場合）
+        const merged = saved.map(ch => {
+          if (ch.children && ch.children.length > 0) return ch;
+          const defaultCh = CHANNELS.find(d => d.id === ch.id);
+          if (defaultCh && defaultCh.children && defaultCh.children.length > 0) {
+            return { ...ch, children: defaultCh.children };
+          }
+          return ch;
+        });
+        setChannelsLocal(merged);
+      }
     });
     return unsub;
   }, []);
