@@ -4958,20 +4958,41 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
           const msgs = messages[ch.id]||[];
           const last = msgs[msgs.length-1];
           const readOnly = !canWriteChannel(ch, currentUser);
+          const hasChildren = ch.children && ch.children.length > 0;
+          const isExpanded = !!openCats[`ch_${ch.id}`];
           return (
-            <div key={ch.id} onClick={()=>setActiveChannel(ch)} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
-              <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
-              <div style={{ flex:1, overflow:"hidden" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>{ch.name}</div>
-                  {readOnly && <div style={{ fontSize:9, background:"#fffbeb", color:"#d97706", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>閲覧</div>}
+            <div key={ch.id}>
+              <div onClick={()=>{ if (hasChildren) { toggleCat(`ch_${ch.id}`); } else { setActiveChannel(ch); } }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+                <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
+                <div style={{ flex:1, overflow:"hidden" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>{ch.name}</div>
+                    {readOnly && <div style={{ fontSize:9, background:"#fffbeb", color:"#d97706", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>閲覧</div>}
+                    {hasChildren && <div style={{ fontSize:9, background:"#f0f9ff", color:"#0284c7", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>{ch.children.length}</div>}
+                  </div>
+                  <div style={{ fontSize:12, color:"#94a3b8", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{last?`${last.nickname}: ${last.text||"📎ファイル"}`:ch.desc}</div>
                 </div>
-                <div style={{ fontSize:12, color:"#94a3b8", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{last?`${last.nickname}: ${last.text||"📎ファイル"}`:ch.desc}</div>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
+                  {!hasChildren && last&&<div style={{ fontSize:10, color:"#94a3b8" }}>{formatTime(last.ts)}</div>}
+                  {!hasChildren && msgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{msgs.length}</div>}
+                  {hasChildren && <span style={{ fontSize:16, color:"#94a3b8", transform:isExpanded?"rotate(180deg)":"none", transition:"transform 0.2s" }}>▾</span>}
+                </div>
               </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
-                {last&&<div style={{ fontSize:10, color:"#94a3b8" }}>{formatTime(last.ts)}</div>}
-                {msgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{msgs.length}</div>}
-              </div>
+              {/* 子チャンネル展開 */}
+              {hasChildren && isExpanded && ch.children.map(sub => {
+                const subMsgs = messages[sub.id]||[];
+                const subLast = subMsgs[subMsgs.length-1];
+                return (
+                  <div key={sub.id} onClick={()=>setActiveChannel({...sub, members: ch.members})} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 18px 10px 48px", background:"#f8fafc", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#475569,#64748b)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{sub.icon || ch.icon}</div>
+                    <div style={{ flex:1, overflow:"hidden" }}>
+                      <div style={{ fontWeight:600, fontSize:13, color:"#334155" }}>{sub.name}</div>
+                      <div style={{ fontSize:11, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{subLast?`${subLast.nickname}: ${subLast.text||"📎ファイル"}`:(sub.desc||"")}</div>
+                    </div>
+                    {subMsgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{subMsgs.length}</div>}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
