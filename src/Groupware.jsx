@@ -5317,22 +5317,36 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     });
   };
 
-  // Firestore: channels（保存済みデータにchildrenがない場合はデフォルトから補完）
+  // Firestore: channels（Firestoreのデータを常に正とする。初回のみデフォルトCHANNELSを使用）
   const [channels, setChannelsLocal] = useState(CHANNELS);
+  const channelsInitialized = useRef(false);
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "appdata", "channels"), (snap) => {
       if (snap.exists()) {
-        const saved = snap.data().list || CHANNELS;
-        // デフォルトCHANNELSのchildrenを補完（保存済みデータにchildrenがない場合）
-        const merged = saved.map(ch => {
-          if (ch.children && ch.children.length > 0) return ch;
-          const defaultCh = CHANNELS.find(d => d.id === ch.id);
-          if (defaultCh && defaultCh.children && defaultCh.children.length > 0) {
-            return { ...ch, children: defaultCh.children };
-          }
-          return ch;
+        const saved = snap.data().list || [];
+        // ワンタイムマイグレーション: 古いデータで部活・地区にchildrenがない場合、デフォルトで補完して保存
+        const needsMigration = saved.some(ch => {
+          const def = CHANNELS.find(d => d.id === ch.id);
+          return def && def.children && def.children.length > 0 && (!ch.children || ch.children.length === 0);
         });
-        setChannelsLocal(merged);
+        if (needsMigration) {
+          const migrated = saved.map(ch => {
+            const def = CHANNELS.find(d => d.id === ch.id);
+            if (def && def.children && def.children.length > 0 && (!ch.children || ch.children.length === 0)) {
+              return { ...ch, children: def.children };
+            }
+            return ch;
+          });
+          setDoc(doc(db, "appdata", "channels"), { list: migrated }).catch(e => console.error("Channels migration error:", e));
+          setChannelsLocal(migrated);
+        } else {
+          setChannelsLocal(saved);
+        }
+        channelsInitialized.current = true;
+      } else if (!channelsInitialized.current) {
+        // Firestoreにまだデータがない → デフォルトCHANNELSを保存
+        setDoc(doc(db, "appdata", "channels"), { list: CHANNELS }).catch(e => console.error("Channels init error:", e));
+        channelsInitialized.current = true;
       }
     });
     return unsub;
