@@ -73,23 +73,8 @@ const CHANNELS = [
     { id:"grade2", name:"2年", icon:"2️⃣", desc:"2年生保護者・担当" },
     { id:"grade3", name:"3年", icon:"3️⃣", desc:"3年生保護者・担当" },
   ]},
-  { id:"club",     name:"部活",       icon:"⚽", desc:"部活動保護者", members:["all"], children:[
-    { id:"club_soccer", name:"サッカー部", icon:"⚽", desc:"サッカー部保護者" },
-    { id:"club_baseball", name:"野球部", icon:"⚾", desc:"野球部保護者" },
-    { id:"club_basketball", name:"バスケ部", icon:"🏀", desc:"バスケ部保護者" },
-    { id:"club_volleyball", name:"バレー部", icon:"🏐", desc:"バレー部保護者" },
-    { id:"club_tennis", name:"テニス部", icon:"🎾", desc:"テニス部保護者" },
-    { id:"club_brass", name:"吹奏楽部", icon:"🎺", desc:"吹奏楽部保護者" },
-    { id:"club_art", name:"美術部", icon:"🎨", desc:"美術部保護者" },
-    { id:"club_science", name:"科学部", icon:"🔬", desc:"科学部保護者" },
-  ]},
-  { id:"district", name:"地区",       icon:"🏘️", desc:"地区別連絡", members:["all"], children:[
-    { id:"dist_yagiyama", name:"八木山本町", icon:"🏠", desc:"八木山本町地区" },
-    { id:"dist_midorigaoka", name:"緑ヶ丘", icon:"🏠", desc:"緑ヶ丘地区" },
-    { id:"dist_minamimachi", name:"南町", icon:"🏠", desc:"南町地区" },
-    { id:"dist_higashi", name:"八木山東", icon:"🏠", desc:"八木山東地区" },
-    { id:"dist_minami", name:"八木山南", icon:"🏠", desc:"八木山南地区" },
-  ]},
+  { id:"club",     name:"部活",       icon:"⚽", desc:"部活動保護者", members:["all"], children:[] },
+  { id:"district", name:"地区",       icon:"🏘️", desc:"地区別連絡", members:["all"], children:[] },
   { id:"honbu",    name:"本部役員",   icon:"👑", desc:"会長・副会長・監事・幹事等", members:["honbu"], children:[] },
   { id:"unei",     name:"運営委員会", icon:"🏛️", desc:"本部役員＋実行委員", members:["unei"], children:[] },
 ];
@@ -112,8 +97,18 @@ const canWriteChannel = (ch, user) => {
   return false; // 本部役員の閲覧のみはfalse
 };
 
-// USERS: Firestoreのusersコレクションから読み込み（GroupwareApp内のstateで管理）
-// ※ ハードコードのダミーメンバーは削除済み
+const USERS = [
+  { id:"u1", name:"伊藤 宏明", nickname:"いとう", role:"会長",   avatar:"👑", grade:"3年", club:"サッカー部", district:"八木山本町" },
+  { id:"u2", name:"佐藤 花子", nickname:"さとう", role:"副会長", avatar:"🌸", grade:"2年", club:"吹奏楽部", district:"緑ヶ丘" },
+  { id:"u3", name:"田中 太郎", nickname:"たなか", role:"一般",   avatar:"👤", grade:"1年", club:"サッカー部", district:"八木山本町" },
+  { id:"u4", name:"鈴木 先生", nickname:"すずき", role:"先生",   avatar:"🎓", grade:"", club:"", district:"" },
+  { id:"u5", name:"山田 美咲", nickname:"やまだ", role:"一般",   avatar:"👩", grade:"1年", club:"バスケ部", district:"南町" },
+  { id:"u6", name:"高橋 健太", nickname:"たかはし", role:"一般", avatar:"👨", grade:"2年", club:"野球部", district:"緑ヶ丘" },
+  { id:"u7", name:"渡辺 由美", nickname:"わたなべ", role:"一般", avatar:"👩", grade:"2年", club:"吹奏楽部", district:"八木山東" },
+  { id:"u8", name:"中村 大輔", nickname:"なかむら", role:"一般", avatar:"👨", grade:"3年", club:"テニス部", district:"八木山南" },
+  { id:"u9", name:"小林 恵子", nickname:"こばやし", role:"委員長", avatar:"📋", grade:"1年", club:"美術部", district:"八木山本町" },
+  { id:"u10", name:"加藤 誠", nickname:"かとう", role:"一般", avatar:"👨", grade:"3年", club:"サッカー部", district:"南町" },
+];
 
 // 送り先カテゴリ（重要お知らせ用）
 const NOTICE_TARGETS = [
@@ -153,14 +148,32 @@ const EVENT_CATEGORIES = [
 ];
 const getCategoryById = (id) => EVENT_CATEGORIES.find(c=>c.id===id) || EVENT_CATEGORIES[0];
 
-const INITIAL_EVENTS = [];
+const INITIAL_EVENTS = [
+  { id:"ev1", date:"2026-05-15", title:"PTA総会",     category:"pta" },
+  { id:"ev2", date:"2026-05-22", title:"運営委員会",   category:"pta" },
+  { id:"ev3", date:"2026-06-03", title:"体育祭",       category:"school" },
+  { id:"ev4", date:"2026-06-10", title:"1年保護者会",   category:"school" },
+  { id:"ev5", date:"2026-07-18", title:"終業式",       category:"school" },
+  { id:"ev6", date:"2026-07-19", title:"夏休み開始",   category:"holiday" },
+  { id:"ev7", date:"2026-05-25", title:"サッカー部大会", category:"club" },
+  { id:"ev8", date:"2026-06-15", title:"地区清掃活動", category:"district" },
+];
 
-const INITIAL_NOTICES = [];
+const INITIAL_NOTICES = [
+  { id:"n1", title:"5月PTA総会のお知らせ", body:"5月15日（木）19時より、八木山中学校体育館にてPTA総会を開催します。会員の皆様はご出席いただきますようお願いします。出欠確認は5月10日までにご連絡ください。", author:"会長・伊藤", ts: Date.now()-3600000*3, important:true },
+  { id:"n2", title:"会費納入のお願い", body:"今年度のPTA会費の納入をお願いします。金額は年間3,000円です。5月末までに担任の先生へお渡しください。", author:"会計担当", ts: Date.now()-3600000*24, important:false },
+  { id:"n3", title:"ベルマーク収集のご協力を", body:"今月末までベルマークを収集しています。ご家庭にあるベルマークをお子様に持たせてください。", author:"広報委員会", ts: Date.now()-3600000*48, important:false },
+];
 
 const INITIAL_MESSAGES = {
-  all: [],
+  all: [
+    { id:"m1", channelId:"all", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"皆さんこんにちは。PTAグループウェアへようこそ！", ts: Date.now()-3600000*2 },
+    { id:"m2", channelId:"all", userId:"u2", nickname:"さとう", avatar:"🌸", role:"副会長", text:"よろしくお願いします！", ts: Date.now()-3600000 },
+  ],
   grade1:[], grade2:[], grade3:[], club:[], district:[],
-  honbu:[],
+  honbu:[
+    { id:"m3", channelId:"honbu", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"本部役員の皆さん、今月の会議は15日（木）19時からです。", ts: Date.now()-7200000 },
+  ],
   unei:[],
 };
 
@@ -200,6 +213,39 @@ async function downloadExcel(sheetData, fileName) {
 }
 
 // ============================================================
+// ログイン画面
+// ============================================================
+function LoginScreen({ onLogin }) {
+  const [sel, setSel] = useState(null);
+  return (
+    <div style={{ height:"100svh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"linear-gradient(160deg,#0f172a 0%,#1e293b 60%,#0f2744 100%)", padding:24, fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif" }}>
+      <style>{CSS}</style>
+      <div style={{ marginBottom:28, textAlign:"center" }}>
+        <div style={{ fontSize:52, marginBottom:10 }}>💬</div>
+        <div style={{ fontWeight:900, fontSize:26, color:"white", letterSpacing:3 }}>グループウェア</div>
+        <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginTop:6, letterSpacing:1 }}>八木山中学校PTA</div>
+      </div>
+      <div style={{ width:"100%", maxWidth:400, background:"rgba(255,255,255,0.06)", backdropFilter:"blur(20px)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:24, padding:"24px 20px" }}>
+        <p style={{ margin:"0 0 14px", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.4)", letterSpacing:1 }}>アカウントを選択</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
+          {USERS.map(u=>(
+            <div key={u.id} onClick={()=>setSel(u)} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:14, border:`2px solid ${sel?.id===u.id?"#38bdf8":"rgba(255,255,255,0.08)"}`, background:sel?.id===u.id?"rgba(56,189,248,0.12)":"rgba(255,255,255,0.03)", cursor:"pointer" }}>
+              <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#334155,#475569)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{u.avatar}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, color:"white", fontSize:15 }}>{u.name}</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:2 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
+              </div>
+              {sel?.id===u.id && <div style={{ color:"#38bdf8", fontWeight:700, fontSize:18 }}>✓</div>}
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>sel&&onLogin(sel)} disabled={!sel} style={{ width:"100%", padding:16, borderRadius:14, border:"none", background:sel?"linear-gradient(135deg,#0284c7,#0369a1)":"rgba(255,255,255,0.08)", color:"white", fontWeight:800, fontSize:16, cursor:sel?"pointer":"not-allowed", boxShadow:sel?"0 4px 20px rgba(2,132,199,0.4)":"none" }}>ログイン →</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // 共通ヘッダー
 // ============================================================
 function Header({ title, onBack, onHome, right }) {
@@ -219,15 +265,13 @@ function Header({ title, onBack, onHome, right }) {
 // ============================================================
 // ホーム画面
 // ============================================================
-function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout, USERS, kiyakuPdf, setKiyakuPdf, channels, onUpdateUser }) {
+function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout }) {
   const latestNotice = notices[0];
   const totalUnread = Object.values(messages).reduce((a,b)=>a+b.length,0);
   const [showKiyaku, setShowKiyaku] = useState(false);
-  const [showMyPage, setShowMyPage] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState(null);
+  const [kiyakuPdf, setKiyakuPdf] = useState(null); // base64 dataUrl
 
-  // 規約PDFアップロード
+  // 規約PDF読み込み（初回のみ・ファイルが設定されていれば）
   const handleKiyakuUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -237,186 +281,14 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
     e.target.value = "";
   };
 
-  // プロフィール編集開始
-  const startEditProfile = () => {
-    // Firestoreの元データを取得
-    const me = USERS.find(u => u.id === currentUser.id);
-    setProfileForm({
-      name: me?.name || currentUser.name || "",
-      email: me?.email || "",
-      category: me?.category || "保護者",
-      district: me?.district || "",
-      role: me?.role || "一般",
-      position: me?.position || "",
-      children: me?.children || [],
-    });
-    setEditingProfile(true);
-  };
-
-  const saveProfile = () => {
-    if (!profileForm || !profileForm.name.trim()) return;
-    onUpdateUser(currentUser.id, profileForm);
-    setEditingProfile(false);
-  };
-
-  // 地区・部活の選択肢をchannelsから取得
-  const districtOptions = (channels.find(ch => ch.name === "地区")?.children || []).map(c => c.name);
-  const clubOptions = (channels.find(ch => ch.name === "部活")?.children || []).map(c => c.name);
-  const gradeOptions = (channels.find(ch => ch.name === "学年")?.children || []).map(c => c.name);
-
-  // マイページ画面
-  if (showMyPage) return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8" }}>
-      <Header title="👤 マイページ" onBack={()=>{setShowMyPage(false);setEditingProfile(false);}}/>
-      <div style={{ flex:1, overflow:"auto", padding:"16px" }}>
-        {!editingProfile ? (
-          <div>
-            <div style={{ background:"white", borderRadius:18, padding:"24px 20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", textAlign:"center", marginBottom:16 }}>
-              <div style={{ fontSize:48, marginBottom:8 }}>{currentUser.avatar}</div>
-              <div style={{ fontWeight:800, fontSize:18, color:"#0f172a" }}>{currentUser.name}</div>
-              <div style={{ fontSize:13, color:"#64748b", marginTop:4 }}>{ROLES.find(r=>r.code===currentUser.role)?.label || currentUser.role}</div>
-            </div>
-
-            <div style={{ background:"white", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:16 }}>
-              <div style={{ fontWeight:700, fontSize:14, color:"#0f172a", marginBottom:12 }}>登録情報</div>
-              {[
-                { label:"カテゴリ", value: USERS.find(u=>u.id===currentUser.id)?.category },
-                { label:"メールアドレス", value: USERS.find(u=>u.id===currentUser.id)?.email },
-                { label:"PTA役割", value: currentUser.role },
-                { label:"地区", value: currentUser.district },
-                { label:"役職", value: USERS.find(u=>u.id===currentUser.id)?.position },
-              ].filter(item => item.value).map((item, i) => (
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #f1f5f9", fontSize:13 }}>
-                  <span style={{ color:"#64748b" }}>{item.label}</span>
-                  <span style={{ color:"#0f172a", fontWeight:600 }}>{item.value}</span>
-                </div>
-              ))}
-            </div>
-
-            {(() => {
-              const me = USERS.find(u => u.id === currentUser.id);
-              if (!me?.children || me.children.length === 0) return null;
-              return (
-                <div style={{ background:"white", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:16 }}>
-                  <div style={{ fontWeight:700, fontSize:14, color:"#0f172a", marginBottom:12 }}>お子さま情報</div>
-                  {me.children.map((child, i) => (
-                    <div key={i} style={{ padding:"8px 0", borderBottom: i < me.children.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                      <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{child.name}</div>
-                      <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>{[child.school, child.grade, child.class_, child.club].filter(Boolean).join(" / ")}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
-            <button onClick={startEditProfile} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:800, fontSize:15, cursor:"pointer" }}>✎ 登録情報を変更する</button>
-          </div>
-        ) : (
-          <div>
-            <div style={{ background:"white", borderRadius:18, padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontWeight:800, fontSize:16, color:"#0f172a", marginBottom:16 }}>登録情報の編集</div>
-
-              {/* 名前 */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>名前</div>
-                <input value={profileForm.name} onChange={e=>setProfileForm(p=>({...p, name:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}/>
-              </div>
-
-              {/* メールアドレス */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>メールアドレス</div>
-                <input value={profileForm.email} onChange={e=>setProfileForm(p=>({...p, email:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}/>
-              </div>
-
-              {/* カテゴリ */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>カテゴリ</div>
-                <div style={{ display:"flex", gap:8 }}>
-                  {["保護者","先生","地域"].map(c => (
-                    <button key={c} onClick={()=>setProfileForm(p=>({...p, category:c}))} style={{ flex:1, padding:"8px", borderRadius:8, border:`2px solid ${profileForm.category===c?"#0284c7":"#e5e7eb"}`, background:profileForm.category===c?"#eff6ff":"white", color:profileForm.category===c?"#0284c7":"#64748b", fontWeight:700, fontSize:13, cursor:"pointer" }}>{c}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* PTA役割 */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>PTA役割</div>
-                <select value={profileForm.role} onChange={e=>setProfileForm(p=>({...p, role:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}>
-                  {ROLES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-                </select>
-              </div>
-
-              {/* 地区 */}
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>地区</div>
-                <select value={profileForm.district} onChange={e=>setProfileForm(p=>({...p, district:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}>
-                  <option value="">未選択</option>
-                  {districtOptions.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-
-              {/* お子さま情報 */}
-              {profileForm.category === "保護者" && (
-                <div style={{ marginBottom:12 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:8 }}>お子さま情報</div>
-                  {profileForm.children.map((child, ci) => (
-                    <div key={ci} style={{ background:"#f8fafc", borderRadius:10, padding:12, marginBottom:8, border:"1px solid #e5e7eb" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#0f172a" }}>お子さま {ci+1}</div>
-                        {profileForm.children.length > 1 && (
-                          <button onClick={()=>setProfileForm(p=>({...p, children:p.children.filter((_,i)=>i!==ci)}))} style={{ background:"#fef2f2", color:"#dc2626", border:"none", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700, cursor:"pointer" }}>削除</button>
-                        )}
-                      </div>
-                      <input placeholder="名前" value={child.name||""} onChange={e=>{const c=[...profileForm.children];c[ci]={...c[ci],name:e.target.value};setProfileForm(p=>({...p,children:c}));}} style={{ width:"100%", padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:13, marginBottom:6 }}/>
-                      <div style={{ display:"flex", gap:6 }}>
-                        <select value={child.grade||""} onChange={e=>{const c=[...profileForm.children];c[ci]={...c[ci],grade:e.target.value};setProfileForm(p=>({...p,children:c}));}} style={{ flex:1, padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:13 }}>
-                          <option value="">学年</option>
-                          {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
-                        <input placeholder="クラス" value={child.class_||""} onChange={e=>{const c=[...profileForm.children];c[ci]={...c[ci],class_:e.target.value};setProfileForm(p=>({...p,children:c}));}} style={{ flex:1, padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:13 }}/>
-                      </div>
-                      <select value={child.club||""} onChange={e=>{const c=[...profileForm.children];c[ci]={...c[ci],club:e.target.value};setProfileForm(p=>({...p,children:c}));}} style={{ width:"100%", padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:13, marginTop:6 }}>
-                        <option value="">部活</option>
-                        {clubOptions.map(cl => <option key={cl} value={cl}>{cl}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                  <button onClick={()=>setProfileForm(p=>({...p,children:[...p.children,{name:"",school:"八木山中学校",grade:"",class_:"",club:""}]}))} style={{ width:"100%", padding:"8px", borderRadius:8, border:"2px dashed #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:12, cursor:"pointer" }}>＋ お子さまを追加</button>
-                </div>
-              )}
-
-              <div style={{ display:"flex", gap:8, marginTop:16 }}>
-                <button onClick={()=>setEditingProfile(false)} style={{ flex:1, padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:14, cursor:"pointer" }}>キャンセル</button>
-                <button onClick={saveProfile} disabled={!profileForm.name.trim()} style={{ flex:1, padding:"12px", borderRadius:10, border:"none", background:profileForm.name.trim()?"linear-gradient(135deg,#0284c7,#0369a1)":"#e5e7eb", color:"white", fontWeight:700, fontSize:14, cursor:profileForm.name.trim()?"pointer":"not-allowed" }}>保存する</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   // PTA規約表示画面
   if (showKiyaku) return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8" }}>
       <Header title="📜 PTA規約" onBack={()=>setShowKiyaku(false)}/>
       <div style={{ flex:1, overflow:"auto", padding:"16px" }}>
         {kiyakuPdf ? (
-          <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", padding:16 }}>
-            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-              <a href={kiyakuPdf} download="PTA規約.pdf" style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#059669,#047857)", color:"white", fontWeight:700, fontSize:13, cursor:"pointer", textDecoration:"none", textAlign:"center", display:"block" }}>📥 PDFをダウンロード</a>
-              <button onClick={()=>{ window.open(kiyakuPdf, "_blank"); }} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:700, fontSize:13, cursor:"pointer" }}>🔎 新しいタブで開く</button>
-            </div>
-            <div style={{ border:"1px solid #e5e7eb", borderRadius:12, overflow:"hidden" }}>
-              <embed src={kiyakuPdf + "#toolbar=1&navpanes=1&scrollbar=1&view=FitH"} type="application/pdf" style={{ width:"100%", height:"calc(100svh - 240px)", display:"block" }}/>
-            </div>
-            <div style={{ marginTop:8, textAlign:"center" }}>
-              <div style={{ fontSize:11, color:"#94a3b8" }}>PDFが表示されない場合は「新しいタブで開く」または「ダウンロード」をご利用ください</div>
-              <label style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:8, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:12, cursor:"pointer", marginTop:8 }}>
-                📄 別のPDFに差し替え
-                <input type="file" accept="application/pdf" onChange={handleKiyakuUpload} style={{ display:"none" }}/>
-              </label>
-            </div>
+          <div style={{ background:"white", borderRadius:18, overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
+            <iframe src={kiyakuPdf} style={{ width:"100%", height:"calc(100svh - 140px)", border:"none" }} title="PTA規約"/>
           </div>
         ) : (
           <div style={{ background:"white", borderRadius:18, padding:"40px 20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", textAlign:"center" }}>
@@ -448,10 +320,7 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
       <div style={{ padding:"20px 16px", display:"flex", flexDirection:"column", gap:14 }}>
         {/* あいさつ */}
         <div style={{ background:"linear-gradient(135deg,#0f172a,#1e3a5f)", borderRadius:18, padding:"18px 20px", color:"white", position:"relative" }}>
-          <div style={{ position:"absolute", top:14, right:14, display:"flex", gap:6 }}>
-            <button onClick={()=>setShowMyPage(true)} style={{ background:"rgba(255,255,255,0.15)", border:"none", borderRadius:10, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:"white", fontSize:11, fontWeight:700 }}>👤 マイページ</button>
-            <button onClick={()=>setShowKiyaku(true)} style={{ background:"rgba(255,255,255,0.15)", border:"none", borderRadius:10, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:"white", fontSize:11, fontWeight:700 }}>📜 規約</button>
-          </div>
+          <button onClick={()=>setShowKiyaku(true)} style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.15)", border:"none", borderRadius:10, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:"white", fontSize:11, fontWeight:700 }}>📜 規約</button>
           <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginBottom:4 }}>おはようございます</div>
           <div style={{ fontSize:18, fontWeight:800 }}>{currentUser.avatar} {currentUser.name} さん</div>
           <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:4 }}>{ROLES.find(r=>r.code===currentUser.role)?.label}</div>
@@ -600,7 +469,7 @@ function MiniCalendar({ events = [] }) {
 // ============================================================
 // お知らせ一覧・詳細
 // ============================================================
-function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits, USERS }) {
+function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits }) {
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showReadList, setShowReadList] = useState(false);
@@ -2054,6 +1923,10 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
         {/* 管理ボタン */}
         {isAdmin && (
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+            <label style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background: importLoading ? "#94a3b8" : "linear-gradient(135deg,#059669,#047857)", color:"white", fontWeight:800, fontSize:13, cursor: importLoading ? "wait" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, textAlign:"center" }}>
+              {importLoading ? "⏳ 読み込み中…" : "📥 CSVインポート"}
+              <input type="file" accept=".csv" onChange={handleImport} disabled={importLoading} style={{ display:"none" }}/>
+            </label>
             <button onClick={()=>openAddForm(null)} style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:800, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>＋ 予定追加</button>
           </div>
         )}
@@ -2145,6 +2018,19 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
           })()}
         </div>
 
+        {/* フォーマット説明 */}
+        {isAdmin && (
+          <div style={{ marginTop:16, background:"white", borderRadius:18, padding:"16px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
+            <div style={{ fontWeight:700, fontSize:13, color:"#64748b", marginBottom:8 }}>📋 CSVインポート対応形式</div>
+            <div style={{ fontSize:12, color:"#475569", lineHeight:1.8 }}>
+              <b style={{ color:"#059669" }}>① 健育カレンダー形式</b>（自動検出）<br/>
+              <span style={{ paddingLeft:12, display:"inline-block" }}>Excelの「名前を付けて保存→CSV」でOK</span><br/>
+              <b style={{ color:"#0284c7", marginTop:4, display:"inline-block" }}>② リスト形式</b><br/>
+              <span style={{ paddingLeft:12, display:"inline-block" }}>日付, 学校名, タイトル, カテゴリ</span><br/>
+              <span style={{ fontSize:11, color:"#94a3b8" }}>※ Shift_JIS / UTF-8 両対応。重複は自動スキップ。</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2153,7 +2039,7 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
 // ============================================================
 // 管理者設定画面
 // ============================================================
-function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels, setChannels, documents, setDocuments, publishForms, setPublishForms, USERS, onUpdateUser }) {
+function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels, setChannels, documents, setDocuments, publishForms, setPublishForms }) {
   const [tab, setTab] = useState("calendar");
   const [importMsg, setImportMsg] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -2176,49 +2062,6 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
   // --- メンバー絞り込み ---
   const [memberFilterCh, setMemberFilterCh] = useState(null);
   const [memberFilterSub, setMemberFilterSub] = useState(null);
-  const [selectedMember, setSelectedMember] = useState(null); // メンバー詳細表示用
-  const [confirmDelete, setConfirmDelete] = useState(null); // 削除確認用
-  const [editingMember, setEditingMember] = useState(false);
-  const [memberForm, setMemberForm] = useState(null);
-
-  const isHonbu = HONBU_ROLES.includes(currentUser.role);
-
-  // 管理者メンバー編集
-  const districtOpts = (channels.find(ch => ch.name === "地区")?.children || []).map(c => c.name);
-  const clubOpts = (channels.find(ch => ch.name === "部活")?.children || []).map(c => c.name);
-  const gradeOpts = (channels.find(ch => ch.name === "学年")?.children || []).map(c => c.name);
-
-  const startEditMember = (member) => {
-    setMemberForm({
-      name: member.name || "",
-      email: member.email || "",
-      category: member.category || "保護者",
-      district: member.district || "",
-      role: member.role || "一般",
-      position: member.position || "",
-      children: member.children || [],
-    });
-    setEditingMember(true);
-  };
-
-  const saveMemberEdit = () => {
-    if (!memberForm || !memberForm.name.trim() || !selectedMember) return;
-    onUpdateUser(selectedMember.id, memberForm);
-    setEditingMember(false);
-    setSelectedMember(null);
-  };
-
-  // メンバー削除（FirestoreのusersコレクションとAuthから削除）
-  const handleDeleteMember = async (userId) => {
-    try {
-      await deleteDoc(doc(db, "users", userId));
-      setConfirmDelete(null);
-      setSelectedMember(null);
-    } catch (e) {
-      console.error("メンバー削除エラー:", e);
-      alert("削除に失敗しました: " + e.message);
-    }
-  };
 
   // --- 文書発行 ---
   // publishNav: 階層ナビ ["committee","unor_1","sidai"] のような配列
@@ -2995,14 +2838,13 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                   <div key={role} style={{ marginBottom:14 }}>
                     <div style={{ fontSize:12, fontWeight:800, color:"#d97706", marginBottom:6, padding:"3px 10px", background:"#fffbeb", borderRadius:6, display:"inline-block" }}>{role}（{users.length}名）</div>
                     {users.map(u => (
-                      <div key={u.id} onClick={()=>isHonbu&&setSelectedMember(u)} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3, cursor:isHonbu?"pointer":"default" }}>
+                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3 }}>
                         <span style={{ fontSize:20 }}>{u.avatar}</span>
                         <div style={{ flex:1 }}>
                           <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{u.name}</div>
                           <div style={{ fontSize:10, color:"#94a3b8" }}>{[u.grade, u.club, u.district].filter(Boolean).join(" / ")}</div>
                         </div>
                         <div style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4, fontWeight:600 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
-                        {isHonbu && <span style={{ fontSize:12, color:"#94a3b8" }}>›</span>}
                       </div>
                     ))}
                   </div>
@@ -3015,154 +2857,19 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                     {filtered.length === 0 ? (
                       <div style={{ textAlign:"center", color:"#94a3b8", fontSize:13, padding:"20px 0" }}>該当するメンバーがいません</div>
                     ) : filtered.map(u => (
-                      <div key={u.id} onClick={()=>isHonbu&&setSelectedMember(u)} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3, cursor:isHonbu?"pointer":"default" }}>
+                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3 }}>
                         <span style={{ fontSize:20 }}>{u.avatar}</span>
                         <div style={{ flex:1 }}>
                           <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{u.name}</div>
                           <div style={{ fontSize:10, color:"#94a3b8" }}>{[u.grade, u.club, u.district].filter(Boolean).join(" / ")}</div>
                         </div>
                         <div style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4, fontWeight:600 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
-                        {isHonbu && <span style={{ fontSize:12, color:"#94a3b8" }}>›</span>}
                       </div>
                     ))}
                   </div>
                 );
               }
             })()}
-
-            {/* メンバー詳細モーダル（本部役員のみ） */}
-            {selectedMember && isHonbu && (
-              <div onClick={()=>{setSelectedMember(null);setConfirmDelete(null);setEditingMember(false);}} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-                <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:20, padding:"24px 20px", width:"100%", maxWidth:380, maxHeight:"80vh", overflow:"auto" }}>
-
-                  {!editingMember ? (
-                    <div>
-                      <div style={{ textAlign:"center", marginBottom:16 }}>
-                        <div style={{ fontSize:48, marginBottom:8 }}>{selectedMember.avatar}</div>
-                        <div style={{ fontWeight:800, fontSize:18, color:"#0f172a" }}>{selectedMember.name}</div>
-                        <div style={{ fontSize:13, color:"#64748b", marginTop:4 }}>{ROLES.find(r=>r.code===selectedMember.role)?.label || selectedMember.role}</div>
-                      </div>
-
-                      <div style={{ background:"#f8fafc", borderRadius:12, padding:16, marginBottom:12 }}>
-                        <div style={{ fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:10 }}>登録情報</div>
-                        {[
-                          { label:"カテゴリ", value: selectedMember.category },
-                          { label:"メールアドレス", value: selectedMember.email },
-                          { label:"地区", value: selectedMember.district },
-                          { label:"役職", value: selectedMember.position },
-                          { label:"PTA役割", value: selectedMember.role },
-                        ].filter(item => item.value).map((item, i) => (
-                          <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #e5e7eb", fontSize:13 }}>
-                            <span style={{ color:"#64748b" }}>{item.label}</span>
-                            <span style={{ color:"#0f172a", fontWeight:600 }}>{item.value}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {selectedMember.children && selectedMember.children.length > 0 && (
-                        <div style={{ background:"#f0fdf4", borderRadius:12, padding:16, marginBottom:12 }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:10 }}>お子さま情報</div>
-                          {selectedMember.children.map((child, i) => (
-                            <div key={i} style={{ padding:"8px 0", borderBottom: i < selectedMember.children.length - 1 ? "1px solid #d1fae5" : "none" }}>
-                              <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{child.name}</div>
-                              <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>{[child.school, child.grade, child.class_, child.club].filter(Boolean).join(" / ")}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {selectedMember.createdAt && (
-                        <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", marginBottom:12 }}>登録日: {new Date(selectedMember.createdAt).toLocaleDateString("ja-JP")}</div>
-                      )}
-
-                      <button onClick={()=>startEditMember(selectedMember)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:700, fontSize:13, cursor:"pointer", marginBottom:8 }}>✎ 登録情報を編集</button>
-
-                      {selectedMember.id !== currentUser.id && (
-                        <div>
-                          {confirmDelete === selectedMember.id ? (
-                            <div style={{ background:"#fef2f2", borderRadius:12, padding:16, textAlign:"center" }}>
-                              <div style={{ fontWeight:700, fontSize:13, color:"#dc2626", marginBottom:10 }}>「{selectedMember.name}」を削除しますか？</div>
-                              <div style={{ fontSize:11, color:"#64748b", marginBottom:12 }}>この操作は取り消せません</div>
-                              <div style={{ display:"flex", gap:8, justifyContent:"center" }}>
-                                <button onClick={()=>setConfirmDelete(null)} style={{ padding:"8px 20px", borderRadius:8, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:13, cursor:"pointer" }}>キャンセル</button>
-                                <button onClick={()=>handleDeleteMember(selectedMember.id)} style={{ padding:"8px 20px", borderRadius:8, border:"none", background:"#dc2626", color:"white", fontWeight:700, fontSize:13, cursor:"pointer" }}>削除する</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button onClick={()=>setConfirmDelete(selectedMember.id)} style={{ width:"100%", padding:"10px", borderRadius:10, border:"2px solid #fecaca", background:"#fef2f2", color:"#dc2626", fontWeight:700, fontSize:13, cursor:"pointer" }}>🗑 このメンバーを削除</button>
-                          )}
-                        </div>
-                      )}
-
-                      <button onClick={()=>{setSelectedMember(null);setConfirmDelete(null);}} style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:"#f1f5f9", color:"#64748b", fontWeight:700, fontSize:14, cursor:"pointer", marginTop:8 }}>閉じる</button>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontWeight:800, fontSize:16, color:"#0f172a", marginBottom:16 }}>メンバー情報の編集</div>
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>名前</div>
-                        <input value={memberForm.name} onChange={e=>setMemberForm(p=>({...p, name:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}/>
-                      </div>
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>メールアドレス</div>
-                        <input value={memberForm.email} onChange={e=>setMemberForm(p=>({...p, email:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}/>
-                      </div>
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>カテゴリ</div>
-                        <div style={{ display:"flex", gap:6 }}>
-                          {["保護者","先生","地域"].map(c => (
-                            <button key={c} onClick={()=>setMemberForm(p=>({...p, category:c}))} style={{ flex:1, padding:"8px", borderRadius:8, border:`2px solid ${memberForm.category===c?"#0284c7":"#e5e7eb"}`, background:memberForm.category===c?"#eff6ff":"white", color:memberForm.category===c?"#0284c7":"#64748b", fontWeight:700, fontSize:12, cursor:"pointer" }}>{c}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>PTA役割</div>
-                        <select value={memberForm.role} onChange={e=>setMemberForm(p=>({...p, role:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}>
-                          {ROLES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-                        </select>
-                      </div>
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:4 }}>地区</div>
-                        <select value={memberForm.district} onChange={e=>setMemberForm(p=>({...p, district:e.target.value}))} style={{ width:"100%", padding:10, borderRadius:8, border:"2px solid #e5e7eb", fontSize:14 }}>
-                          <option value="">未選択</option>
-                          {districtOpts.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                      </div>
-                      {memberForm.category === "保護者" && (
-                        <div style={{ marginBottom:10 }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:"#64748b", marginBottom:6 }}>お子さま情報</div>
-                          {memberForm.children.map((child, ci) => (
-                            <div key={ci} style={{ background:"#f8fafc", borderRadius:8, padding:10, marginBottom:6, border:"1px solid #e5e7eb" }}>
-                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                                <div style={{ fontSize:11, fontWeight:700, color:"#0f172a" }}>お子さま {ci+1}</div>
-                                {memberForm.children.length > 1 && <button onClick={()=>setMemberForm(p=>({...p, children:p.children.filter((_,i)=>i!==ci)}))} style={{ background:"#fef2f2", color:"#dc2626", border:"none", borderRadius:4, padding:"2px 6px", fontSize:10, fontWeight:700, cursor:"pointer" }}>削除</button>}
-                              </div>
-                              <input placeholder="名前" value={child.name||""} onChange={e=>{const c=[...memberForm.children];c[ci]={...c[ci],name:e.target.value};setMemberForm(p=>({...p,children:c}));}} style={{ width:"100%", padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:13, marginBottom:4 }}/>
-                              <div style={{ display:"flex", gap:4 }}>
-                                <select value={child.grade||""} onChange={e=>{const c=[...memberForm.children];c[ci]={...c[ci],grade:e.target.value};setMemberForm(p=>({...p,children:c}));}} style={{ flex:1, padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:12 }}>
-                                  <option value="">学年</option>
-                                  {gradeOpts.map(g => <option key={g} value={g}>{g}</option>)}
-                                </select>
-                                <input placeholder="クラス" value={child.class_||""} onChange={e=>{const c=[...memberForm.children];c[ci]={...c[ci],class_:e.target.value};setMemberForm(p=>({...p,children:c}));}} style={{ flex:1, padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:12 }}/>
-                              </div>
-                              <select value={child.club||""} onChange={e=>{const c=[...memberForm.children];c[ci]={...c[ci],club:e.target.value};setMemberForm(p=>({...p,children:c}));}} style={{ width:"100%", padding:8, borderRadius:6, border:"1px solid #e5e7eb", fontSize:12, marginTop:4 }}>
-                                <option value="">部活</option>
-                                {clubOpts.map(cl => <option key={cl} value={cl}>{cl}</option>)}
-                              </select>
-                            </div>
-                          ))}
-                          <button onClick={()=>setMemberForm(p=>({...p,children:[...p.children,{name:"",school:"八木山中学校",grade:"",class_:"",club:""}]}))} style={{ width:"100%", padding:"6px", borderRadius:6, border:"2px dashed #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:11, cursor:"pointer" }}>＋ お子さまを追加</button>
-                        </div>
-                      )}
-                      <div style={{ display:"flex", gap:8, marginTop:14 }}>
-                        <button onClick={()=>setEditingMember(false)} style={{ flex:1, padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, fontSize:14, cursor:"pointer" }}>キャンセル</button>
-                        <button onClick={saveMemberEdit} disabled={!memberForm.name.trim()} style={{ flex:1, padding:"12px", borderRadius:10, border:"none", background:memberForm.name.trim()?"linear-gradient(135deg,#0284c7,#0369a1)":"#e5e7eb", color:"white", fontWeight:700, fontSize:14, cursor:memberForm.name.trim()?"pointer":"not-allowed" }}>保存する</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -5148,44 +4855,29 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   );
 }
 
-function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, USERS, channels }) {
+function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome }) {
   const [tab, setTab] = useState("channels");
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeDM, setActiveDM] = useState(null);
   const [openCats, setOpenCats] = useState({}); // 折りたたみ制御
 
   // アクセス可能なチャンネルのみ表示
-  const visibleChannels = (channels || CHANNELS).filter(ch => canAccessChannel(ch, currentUser));
+  const visibleChannels = CHANNELS.filter(ch => canAccessChannel(ch, currentUser));
 
-  const others = USERS.filter(u=>u.id!==currentUser.id);
-  const toggleCat = (catId) => setOpenCats(prev => ({ ...prev, [catId]: !prev[catId] }));
-
-  // DMカテゴリ定義 — 管理者画面のchannelsから動的生成（childrenが空ならUSERSから自動収集）
-  const chFieldMap = { "学年":"grade", "部活":"club", "地区":"district" };
-  const safeChannels = channels || CHANNELS;
+  // DMカテゴリ定義（一般会員はサブカテゴリ付き）
   const DM_CATEGORIES = [
     { id:"honbu_school", label:"本部役員・学校", icon:"👑", filter: u => HONBU_ROLES.includes(u.role) || SCHOOL_ROLES.includes(u.role) },
     { id:"unei_member", label:"運営委員会", icon:"🏛️", filter: u => u.role==="委員長" },
-    { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" || u.category==="先生" },
-    { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般" || (!HONBU_ROLES.includes(u.role) && !SCHOOL_ROLES.includes(u.role) && u.role!=="委員長" && u.role!=="先生"),
-      subs: safeChannels
-        .filter(ch => chFieldMap[ch.name])
-        .map(ch => {
-          const fieldKey = chFieldMap[ch.name];
-          const groups = (ch.children && ch.children.length > 0)
-            ? ch.children.map(sub => sub.name)
-            : [...new Set(others.map(u => u[fieldKey]).filter(Boolean))].sort();
-          if (groups.length === 0) return null;
-          return {
-            id: `gen_${ch.id}`,
-            label: `${ch.name}から探す`,
-            icon: ch.icon,
-            groupBy: u => u[fieldKey],
-            groups,
-          };
-        }).filter(Boolean)
-    },
+    { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" },
+    { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般", subs:[
+      { id:"gen_grade", label:"学年から探す", icon:"🎒", groupBy: u => u.grade, groups:["1年","2年","3年"] },
+      { id:"gen_club", label:"部活から探す", icon:"⚽", groupBy: u => u.club, groups:["サッカー部","野球部","バスケ部","バレー部","テニス部","吹奏楽部","美術部","科学部"] },
+      { id:"gen_district", label:"地区から探す", icon:"🏘️", groupBy: u => u.district, groups:["八木山本町","緑ヶ丘","南町","八木山東","八木山南"] },
+    ]},
   ];
+
+  const others = USERS.filter(u=>u.id!==currentUser.id);
+  const toggleCat = (catId) => setOpenCats(prev => ({ ...prev, [catId]: !prev[catId] }));
 
   // メンバー行の共通レンダー
   const renderMemberRow = (u, indent=64) => {
@@ -5230,41 +4922,20 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
           const msgs = messages[ch.id]||[];
           const last = msgs[msgs.length-1];
           const readOnly = !canWriteChannel(ch, currentUser);
-          const hasChildren = ch.children && ch.children.length > 0;
-          const isExpanded = !!openCats[`ch_${ch.id}`];
           return (
-            <div key={ch.id}>
-              <div onClick={()=>{ if (hasChildren) { toggleCat(`ch_${ch.id}`); } else { setActiveChannel(ch); } }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
-                <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
-                <div style={{ flex:1, overflow:"hidden" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>{ch.name}</div>
-                    {readOnly && <div style={{ fontSize:9, background:"#fffbeb", color:"#d97706", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>閲覧</div>}
-                    {hasChildren && <div style={{ fontSize:9, background:"#f0f9ff", color:"#0284c7", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>{ch.children.length}</div>}
-                  </div>
-                  <div style={{ fontSize:12, color:"#94a3b8", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{last?`${last.nickname}: ${last.text||"📎ファイル"}`:ch.desc}</div>
+            <div key={ch.id} onClick={()=>setActiveChannel(ch)} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+              <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
+              <div style={{ flex:1, overflow:"hidden" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>{ch.name}</div>
+                  {readOnly && <div style={{ fontSize:9, background:"#fffbeb", color:"#d97706", padding:"1px 6px", borderRadius:4, fontWeight:700 }}>閲覧</div>}
                 </div>
-                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
-                  {!hasChildren && last&&<div style={{ fontSize:10, color:"#94a3b8" }}>{formatTime(last.ts)}</div>}
-                  {!hasChildren && msgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{msgs.length}</div>}
-                  {hasChildren && <span style={{ fontSize:16, color:"#94a3b8", transform:isExpanded?"rotate(180deg)":"none", transition:"transform 0.2s" }}>▾</span>}
-                </div>
+                <div style={{ fontSize:12, color:"#94a3b8", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{last?`${last.nickname}: ${last.text||"📎ファイル"}`:ch.desc}</div>
               </div>
-              {/* 子チャンネル展開 */}
-              {hasChildren && isExpanded && ch.children.map(sub => {
-                const subMsgs = messages[sub.id]||[];
-                const subLast = subMsgs[subMsgs.length-1];
-                return (
-                  <div key={sub.id} onClick={()=>setActiveChannel({...sub, members: ch.members})} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 18px 10px 48px", background:"#f8fafc", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
-                    <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#475569,#64748b)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{sub.icon || ch.icon}</div>
-                    <div style={{ flex:1, overflow:"hidden" }}>
-                      <div style={{ fontWeight:600, fontSize:13, color:"#334155" }}>{sub.name}</div>
-                      <div style={{ fontSize:11, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{subLast?`${subLast.nickname}: ${subLast.text||"📎ファイル"}`:(sub.desc||"")}</div>
-                    </div>
-                    {subMsgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{subMsgs.length}</div>}
-                  </div>
-                );
-              })}
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
+                {last&&<div style={{ fontSize:10, color:"#94a3b8" }}>{formatTime(last.ts)}</div>}
+                {msgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{msgs.length}</div>}
+              </div>
             </div>
           );
         })}
@@ -5385,34 +5056,6 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     };
   });
   const [screen, setScreen] = useState("home");
-
-  // Firestore: usersコレクションからメンバー一覧をリアルタイム読み込み
-  const [USERS, setUSERS] = useState([]);
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "users"), (snap) => {
-      const data = snap.docs.map(d => {
-        const raw = d.data();
-        return {
-          id: d.id,
-          name: raw.name || "ユーザー",
-          nickname: (raw.name || "ユーザー").split(" ")[0],
-          role: raw.role || raw.ptaRole || "一般",
-          avatar: raw.category === "先生" ? "🎓" : raw.category === "地域" ? "🏘️" : "👤",
-          grade: raw.children?.[0]?.grade || "",
-          club: raw.children?.[0]?.club || "",
-          district: raw.district || "",
-          category: raw.category || "保護者",
-          email: raw.email || "",
-          position: raw.position || "",
-          children: raw.children || [],
-          createdAt: raw.createdAt || "",
-        };
-      });
-      setUSERS(data);
-    });
-    return unsub;
-  }, []);
-
   const [notices, setNoticesLocal] = useState([]);
 
   // Firestore: noticesをリアルタイム読み込み
@@ -5449,39 +5092,8 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       }
     }
   };
-  const [messages, setMessagesLocal] = useState({});
-  const [dmMessages, setDmMessagesLocal] = useState({});
-
-  // Firestore: messagesをリアルタイム読み込み（単一ドキュメント方式）
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "messages"), (snap) => {
-      if (snap.exists()) setMessagesLocal(snap.data());
-    });
-    return unsub;
-  }, []);
-  const setMessages = (updater) => {
-    setMessagesLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "messages"), next).catch(e => console.error("Messages sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: dmMessagesをリアルタイム読み込み
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "dmMessages"), (snap) => {
-      if (snap.exists()) setDmMessagesLocal(snap.data());
-    });
-    return unsub;
-  }, []);
-  const setDmMessages = (updater) => {
-    setDmMessagesLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "dmMessages"), next).catch(e => console.error("DM sync error:", e));
-      return next;
-    });
-  };
-
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [dmMessages, setDmMessages] = useState({});
   const [events, setEventsLocal] = useState([]);
   const eventsLoaded = useRef(false);
 
@@ -5510,6 +5122,8 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     try {
       const prevMap = new Map(prev.map(e => [e.id, e]));
       const nextIds = new Set(next.map(e => e.id));
+
+      // 差分のみ収集: 追加・更新されたもの + 削除されたもの
       const ops = [];
       for (const ev of next) {
         const old = prevMap.get(ev.id);
@@ -5523,6 +5137,8 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
         }
       }
       if (ops.length === 0) return;
+
+      // 500件ずつバッチ分割（Firestore上限）
       for (let i = 0; i < ops.length; i += 450) {
         const chunk = ops.slice(i, i + 450);
         const batch = writeBatch(db);
@@ -5541,119 +5157,19 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       console.error("Firestore sync error:", e);
     }
   };
-
-  // Firestore: surveys
-  const [surveys, setSurveysLocal] = useState([]);
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "surveys"), (snap) => {
-      if (snap.exists()) setSurveysLocal(snap.data().list || []);
-    });
-    return unsub;
-  }, []);
-  const setSurveys = (updater) => {
-    setSurveysLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "surveys"), { list: next }).catch(e => console.error("Surveys sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: recruits
-  const [recruits, setRecruitsLocal] = useState([]);
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "recruits"), (snap) => {
-      if (snap.exists()) setRecruitsLocal(snap.data().list || []);
-    });
-    return unsub;
-  }, []);
-  const setRecruits = (updater) => {
-    setRecruitsLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "recruits"), { list: next }).catch(e => console.error("Recruits sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: channels（Firestoreのデータを常に正とする。絶対に自動書き換えしない）
-  const [channels, setChannelsLocal] = useState(CHANNELS);
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "channels"), (snap) => {
-      if (snap.exists()) {
-        setChannelsLocal(snap.data().list || CHANNELS);
-      }
-      // Firestoreにデータがない場合はデフォルトCHANNELSをstateとして使うのみ（Firestoreには書き込まない）
-      // 管理者画面で初めて変更を加えた際にFirestoreに保存される
-    });
-    return unsub;
-  }, []);
-  const setChannels = (updater) => {
-    setChannelsLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "channels"), { list: next }).catch(e => console.error("Channels sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: documents
-  const [documents, setDocumentsLocal] = useState([]);
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "documents"), (snap) => {
-      if (snap.exists()) setDocumentsLocal(snap.data().list || []);
-    });
-    return unsub;
-  }, []);
-  const setDocuments = (updater) => {
-    setDocumentsLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "documents"), { list: next }).catch(e => console.error("Documents sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: publishForms
-  const [publishForms, setPublishFormsLocal] = useState({ _activeNav: [] });
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "publishForms"), (snap) => {
-      if (snap.exists()) setPublishFormsLocal(snap.data());
-    });
-    return unsub;
-  }, []);
-  const setPublishForms = (updater) => {
-    setPublishFormsLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "publishForms"), next).catch(e => console.error("PublishForms sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: readRecords
-  const [readRecords, setReadRecordsLocal] = useState({});
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "readRecords"), (snap) => {
-      if (snap.exists()) setReadRecordsLocal(snap.data());
-    });
-    return unsub;
-  }, []);
-  const setReadRecords = (updater) => {
-    setReadRecordsLocal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      setDoc(doc(db, "appdata", "readRecords"), next).catch(e => console.error("ReadRecords sync error:", e));
-      return next;
-    });
-  };
-
-  // Firestore: kiyakuPdf（規約PDF）
-  const [kiyakuPdf, setKiyakuPdfLocal] = useState(null);
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, "appdata", "kiyakuPdf"), (snap) => {
-      if (snap.exists()) setKiyakuPdfLocal(snap.data().data || null);
-    });
-    return unsub;
-  }, []);
-  const setKiyakuPdf = (value) => {
-    setKiyakuPdfLocal(value);
-    setDoc(doc(db, "appdata", "kiyakuPdf"), { data: value }).catch(e => console.error("KiyakuPdf sync error:", e));
-  };
+  const [surveys, setSurveys] = useState([]);
+  const [recruits, setRecruits] = useState([]);
+  const [channels, setChannels] = useState(CHANNELS);
+  const [documents, setDocuments] = useState([
+    { id:"doc1", name:"PTA総会議事録テンプレート", category:"テンプレート", createdAt:"2026-04-01", author:"いとう" },
+    { id:"doc2", name:"令和8年度PTA活動計画書", category:"会議資料", createdAt:"2026-04-01", author:"いとう" },
+    { id:"doc3", name:"PTA会則", category:"規約・規程", createdAt:"2026-04-01", author:"いとう" },
+  ]);
+  const [publishForms, setPublishForms] = useState({
+    _activeNav: [],
+  });
+  // 閲覧記録: { noticeId: [{ userId, name }] }
+  const [readRecords, setReadRecords] = useState({});
 
   if (!currentUser) { if (onBackToHome) onBackToHome(); return null; }
 
@@ -5663,38 +5179,6 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       if (existing.some(r => r.userId === user.id)) return prev;
       return { ...prev, [noticeId]: [...existing, { userId: user.id, name: user.name }] };
     });
-  };
-
-  // ユーザー情報更新（マイページ・管理者画面共通）
-  const handleUpdateUser = async (userId, formData) => {
-    try {
-      const updateData = {
-        name: formData.name,
-        email: formData.email,
-        category: formData.category,
-        district: formData.district,
-        role: formData.role,
-        ptaRole: formData.role,
-        position: formData.position || "",
-        children: formData.children || [],
-      };
-      await setDoc(doc(db, "users", userId), updateData, { merge: true });
-      // currentUserが自分自身の場合、ローカルstateも更新
-      if (userId === currentUser.id) {
-        setCurrentUser(prev => ({
-          ...prev,
-          name: formData.name,
-          nickname: formData.name.split(" ")[0],
-          role: formData.role,
-          district: formData.district,
-          grade: formData.children?.[0]?.grade || "",
-          club: formData.children?.[0]?.club || "",
-        }));
-      }
-    } catch (e) {
-      console.error("User update error:", e);
-      alert("更新に失敗しました: " + e.message);
-    }
   };
 
   const handleSendChannel = (channelId, text, attachments=[]) => {
@@ -5713,11 +5197,11 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   return (
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
-      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} USERS={USERS} kiyakuPdf={kiyakuPdf} setKiyakuPdf={setKiyakuPdf} channels={channels} onUpdateUser={handleUpdateUser}/>}
-      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} USERS={USERS}/>}
+      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }}/>}
+      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser}/>}
-      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} USERS={USERS} channels={channels}/>}
-      {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms} USERS={USERS} onUpdateUser={handleUpdateUser}/>}
+      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")}/>}
+      {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms}/>}
     </div>
   );
 }

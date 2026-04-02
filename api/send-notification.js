@@ -1,0 +1,143 @@
+// /api/send-notification.js
+// 八木中ネット 統合メール通知API（Resend）
+// グループウェア・イベントナビ・見守りナビ共通
+
+export default async function handler(req, res) {
+  // CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) return res.status(500).json({ error: "RESEND_API_KEY not configured" });
+
+  try {
+    const { type, title, body, emails, senderName } = req.body;
+
+    // バリデーション
+    if (!type || !title || !body) {
+      return res.status(400).json({ error: "type, title, body are required" });
+    }
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ error: "emails array is required and must not be empty" });
+    }
+
+    // メール件名のプレフィックス（アプリ種別で分ける）
+    const subjectPrefix = {
+      // グループウェア
+      "notice": "【八木中ネット】",
+      // イベントナビ
+      "event-approved-organizer": "【イベントナビ】",
+      "event-revision": "【イベントナビ】",
+      "event-rejected": "【イベントナビ】",
+      "event-new": "【イベントナビ】",
+      "event-emergency": "【イベントナビ】",
+      // 見守りナビ（将来用）
+      "mimamori": "【見守りナビ】",
+    }[type] || "【八木中ネット】";
+
+    const subject = `${subjectPrefix} ${title}`;
+
+    // 送信元（Resend無料枠のデフォルトドメイン）
+    // 独自ドメイン設定後は "noreply@yourdomain.com" に変更
+    const from = `${senderName || "八木中ネット"} <onboarding@resend.dev>`;
+
+    // Resend APIはto配列を最大50件まで受付
+    // 50件超の場合はバッチ分割
+    const BATCH_SIZE = 50;
+    const batches = [];
+    for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+      batches.push(emails.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = [];
+    for (const batch of batches) {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: batch,
+          subject,
+          html: buildHtml(type, title, body, senderName),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Resend API error:", data);
+        results.push({ success: false, error: data });
+      } else {
+        results.push({ success: true, id: data.id });
+      }
+    }
+
+    const allSuccess = results.every(r => r.success);
+    return res.status(allSuccess ? 200 : 207).json({
+      message: allSuccess ? "All emails sent" : "Some emails failed",
+      results,
+      totalEmails: emails.length,
+      totalBatches: batches.length,
+    });
+
+  } catch (error) {
+    console.error("send-notification error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// メール本文HTML生成
+function buildHtml(type, title, body, senderName) {
+  const appLabel = {
+    "notice": "グループウェア",
+    "event-approved-organizer": "イベントナビ",
+    "event-revision": "イベントナビ",
+    "event-rejected": "イベントナビ",
+    "event-new": "イベントナビ",
+    "event-emergency": "イベントナビ",
+    "mimamori": "見守りナビ",
+  }[type] || "八木中ネット";
+
+  const accentColor = {
+    "notice": "#2563eb",
+    "event-approved-organizer": "#16a34a",
+    "event-revision": "#d97706",
+    "event-rejected": "#dc2626",
+    "event-new": "#2563eb",
+    "event-emergency": "#dc2626",
+    "mimamori": "#16a34a",
+  }[type] || "#2563eb";
+
+  // 改行をbrタグに変換
+  const bodyHtml = body.replace(/\n/g, "<br>");
+
+  return `
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;">
+  <div style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:${accentColor};padding:20px 24px;">
+      <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-bottom:4px;">${appLabel}</div>
+      <div style="color:#fff;font-size:18px;font-weight:700;">${title}</div>
+    </div>
+    <div style="padding:24px;font-size:14px;line-height:1.8;color:#374151;">
+      ${bodyHtml}
+    </div>
+    ${senderName ? `<div style="padding:0 24px 16px;font-size:12px;color:#9ca3af;">投稿者: ${senderName}</div>` : ""}
+    <div style="padding:16px 24px;text-align:center;">
+      <a href="https://yagiyama-net.vercel.app" style="display:inline-block;padding:10px 28px;background:${accentColor};color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">八木中ネットを開く</a>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #f3f4f6;font-size:11px;color:#9ca3af;text-align:center;">
+      このメールは八木中ネットから自動送信されています。<br>
+      八木山中学校PTA
+    </div>
+  </div>
+</body>
+</html>`;
+}
