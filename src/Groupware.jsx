@@ -312,7 +312,7 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
         right={
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{currentUser.avatar} {currentUser.nickname}</span>
-            <button onClick={onLogout} style={{ padding:"5px 10px", borderRadius:8, border:"none", background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.8)", cursor:"pointer", fontSize:11, fontWeight:700 }}>退出</button>
+            <button onClick={onLogout} style={{ padding:"5px 10px", borderRadius:8, border:"none", background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.8)", cursor:"pointer", fontSize:11, fontWeight:700 }}>🏠 ホームに戻る</button>
           </div>
         }
       />
