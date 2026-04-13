@@ -418,8 +418,8 @@ function ConfirmRow({ label, value }) {
 function HomeScreen({ profile, onLogout, onOpenApp }) {
   const apps = [
     { id:"groupware", name:"グループウェア", icon:"💬", desc:"お知らせ・チャット・アンケート", color:"#1a73e8", available:true },
-    { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#0d9488", available:false },
-    { id:"eventnavi", name:"イベントナビ", icon:"🎪", desc:"イベント管理・参加受付", color:"#d97706", available:false },
+    { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#0d9488", available:true, url:"https://mimamori-navi.vercel.app" },
+    { id:"eventnavi", name:"イベントナビ", icon:"🎪", desc:"イベント管理・参加受付", color:"#d97706", available:true, url:"https://eventnavi.vercel.app" },
   ];
 
   const initial = (profile?.name || "?").charAt(0);
@@ -460,8 +460,9 @@ function HomeScreen({ profile, onLogout, onOpenApp }) {
       <div style={{ fontSize:15, fontWeight:700, color:TEXT, marginBottom:12 }}>アプリ</div>
       {apps.map(app => (
         <div key={app.id} onClick={()=>{
-          if (app.available && onOpenApp) {
-            onOpenApp(app.id);
+          if (app.available) {
+            if (app.url) window.open(app.url, "_blank");
+            else if (onOpenApp) onOpenApp(app.id);
           }
         }} style={{
           display:"flex", alignItems:"center", gap:14, padding:"16px 18px", borderRadius:RADIUS, background:CARD_BG,
