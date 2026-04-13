@@ -406,6 +406,30 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
             </div>
           </div>
         )}
+
+        {/* ⑤ 外部アプリ（イベントナビ・見守りナビ） */}
+        <div style={{ display:"flex", gap:12 }}>
+          <div onClick={()=>window.open("https://eventnavi.vercel.app","_blank")} style={{ flex:1, background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#7c3aed,#5b21b6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>🎪</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:800, fontSize:14, color:"#0f172a" }}>イベントナビ</div>
+                <div style={{ fontSize:10, color:"#94a3b8" }}>地域イベント</div>
+              </div>
+              <span style={{ color:"#cbd5e1", fontSize:16 }}>↗</span>
+            </div>
+          </div>
+          <div onClick={()=>window.open("https://mimamori-navi.vercel.app","_blank")} style={{ flex:1, background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#059669,#047857)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>👁️</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:800, fontSize:14, color:"#0f172a" }}>見守りナビ</div>
+                <div style={{ fontSize:10, color:"#94a3b8" }}>登下校見守り</div>
+              </div>
+              <span style={{ color:"#cbd5e1", fontSize:16 }}>↗</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
