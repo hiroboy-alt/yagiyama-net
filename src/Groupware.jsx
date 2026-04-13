@@ -98,16 +98,16 @@ const canWriteChannel = (ch, user) => {
 };
 
 const USERS = [
-  { id:"u1", name:"伊藤 宏明", nickname:"いとう", role:"会長",   avatar:"👑", grade:"3年", club:"サッカー部", district:"八木山本町" },
-  { id:"u2", name:"佐藤 花子", nickname:"さとう", role:"副会長", avatar:"🌸", grade:"2年", club:"吹奏楽部", district:"緑ヶ丘" },
-  { id:"u3", name:"田中 太郎", nickname:"たなか", role:"一般",   avatar:"👤", grade:"1年", club:"サッカー部", district:"八木山本町" },
-  { id:"u4", name:"鈴木 先生", nickname:"すずき", role:"先生",   avatar:"🎓", grade:"", club:"", district:"" },
-  { id:"u5", name:"山田 美咲", nickname:"やまだ", role:"一般",   avatar:"👩", grade:"1年", club:"バスケ部", district:"南町" },
-  { id:"u6", name:"高橋 健太", nickname:"たかはし", role:"一般", avatar:"👨", grade:"2年", club:"野球部", district:"緑ヶ丘" },
-  { id:"u7", name:"渡辺 由美", nickname:"わたなべ", role:"一般", avatar:"👩", grade:"2年", club:"吹奏楽部", district:"八木山東" },
-  { id:"u8", name:"中村 大輔", nickname:"なかむら", role:"一般", avatar:"👨", grade:"3年", club:"テニス部", district:"八木山南" },
-  { id:"u9", name:"小林 恵子", nickname:"こばやし", role:"委員長", avatar:"📋", grade:"1年", club:"美術部", district:"八木山本町" },
-  { id:"u10", name:"加藤 誠", nickname:"かとう", role:"一般", avatar:"👨", grade:"3年", club:"サッカー部", district:"南町" },
+  { id:"u1", name:"伊藤 宏明", nickname:"いとう", role:"会長",   avatar:"👑", grade:"3年", club:"サッカー部", district:"八木山本町", email:"hiro.hboy@gmail.com" },
+  { id:"u2", name:"佐藤 花子", nickname:"さとう", role:"副会長", avatar:"🌸", grade:"2年", club:"吹奏楽部", district:"緑ヶ丘", email:"" },
+  { id:"u3", name:"田中 太郎", nickname:"たなか", role:"一般",   avatar:"👤", grade:"1年", club:"サッカー部", district:"八木山本町", email:"" },
+  { id:"u4", name:"鈴木 先生", nickname:"すずき", role:"先生",   avatar:"🎓", grade:"", club:"", district:"", email:"" },
+  { id:"u5", name:"山田 美咲", nickname:"やまだ", role:"一般",   avatar:"👩", grade:"1年", club:"バスケ部", district:"南町", email:"" },
+  { id:"u6", name:"高橋 健太", nickname:"たかはし", role:"一般", avatar:"👨", grade:"2年", club:"野球部", district:"緑ヶ丘", email:"" },
+  { id:"u7", name:"渡辺 由美", nickname:"わたなべ", role:"一般", avatar:"👩", grade:"2年", club:"吹奏楽部", district:"八木山東", email:"" },
+  { id:"u8", name:"中村 大輔", nickname:"なかむら", role:"一般", avatar:"👨", grade:"3年", club:"テニス部", district:"八木山南", email:"" },
+  { id:"u9", name:"小林 恵子", nickname:"こばやし", role:"委員長", avatar:"📋", grade:"1年", club:"美術部", district:"八木山本町", email:"" },
+  { id:"u10", name:"加藤 誠", nickname:"かとう", role:"一般", avatar:"👨", grade:"3年", club:"サッカー部", district:"南町", email:"" },
 ];
 
 // 送り先カテゴリ（重要お知らせ用）
@@ -5190,8 +5190,33 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     const msg = { id:`dm_${Date.now()}`, channelId:key, userId:currentUser.id, nickname:currentUser.nickname, avatar:currentUser.avatar, role:currentUser.role, text, ts:Date.now(), attachments };
     setDmMessages(prev=>({ ...prev, [key]:[...(prev[key]||[]), msg] }));
   };
+  // メール通知送信（グループウェア・イベントナビ・見守りナビ共通API）
+  const sendEmailNotification = async ({ type, title, body, emails, senderName }) => {
+    try {
+      const res = await fetch("/api/send-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, title, body, emails, senderName }),
+      });
+      const data = await res.json();
+      if (!res.ok) console.error("メール通知エラー:", data);
+      else console.log("メール通知送信完了:", data);
+      return data;
+    } catch (e) {
+      console.error("メール通知送信失敗:", e);
+      return null;
+    }
+  };
+
   const handleAddNotice = (title, body, user, important=false, target=null, attachments=[]) => {
     setNotices(prev=>[{ id:`n_${Date.now()}`, title, body, author:user.nickname, ts:Date.now(), important, target, attachments }, ...prev]);
+    // メール通知を送信（テスト用：自分自身も含める。本番運用時は .filter(u => u.id !== currentUser.id) を戻すこと）
+    const ptaEmails = USERS
+      .map(u => u.email)
+      .filter(Boolean);
+    if (ptaEmails.length > 0) {
+      sendEmailNotification({ type: "notice", title, body, emails: ptaEmails, senderName: currentUser.name });
+    }
   };
 
   return (
