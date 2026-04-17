@@ -1511,6 +1511,7 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
   const [formDate, setFormDate] = useState("");
   const [formTitle, setFormTitle] = useState("");
   const [formCat, setFormCat] = useState("school");
+  const [formSchool, setFormSchool] = useState("八木山中");
   const [importMsg, setImportMsg] = useState(null);
   const [importPreview, setImportPreview] = useState(null); // { events:[], schools:[], selectedSchools:Set }
   const [importLoading, setImportLoading] = useState(false);
@@ -1733,28 +1734,33 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
   };
 
   // 予定の追加・編集
+  const SCHOOL_OPTIONS = ["八木山中","八木山小","八木山南小","芦口小","地域"];
+  const getSchoolFromTitle = (title) => {
+    const m = title.match(/^\[(.+?)\]\s*/);
+    return m ? m[1] : null;
+  };
+  const stripSchoolPrefix = (title) => title.replace(/^\[.+?\]\s*/, "");
+
   const openAddForm = (preDate) => {
     setEditEvent(null);
     setFormDate(preDate || dateStr(year,month,today.getDate()));
-    setFormTitle(""); setFormCat("school");
+    setFormTitle(""); setFormCat("school"); setFormSchool("八木山中");
     setShowForm(true);
   };
   const openEditForm = (ev) => {
     setEditEvent(ev);
-    setFormDate(ev.date); setFormTitle(ev.title); setFormCat(ev.category);
+    const school = getSchoolFromTitle(ev.title) || "八木山中";
+    setFormDate(ev.date); setFormTitle(stripSchoolPrefix(ev.title)); setFormCat(ev.category); setFormSchool(school);
     setShowForm(true);
   };
   const handleSave = () => {
     if (!formDate || !formTitle.trim()) return;
+    const fullTitle = `[${formSchool}] ${formTitle.trim()}`;
     if (editEvent) {
-      setEvents(prev => prev.map(ev => ev.id === editEvent.id ? { ...ev, date:formDate, title:formTitle.trim(), category:formCat } : ev));
+      setEvents(prev => prev.map(ev => ev.id === editEvent.id ? { ...ev, date:formDate, title:fullTitle, category:formCat } : ev));
     } else {
-      const newEv = { id:`ev_${Date.now()}`, date:formDate, title:formTitle.trim(), category:formCat };
-      console.log("[DEBUG] handleSave: 追加するイベント:", JSON.stringify(newEv));
-      setEvents(prev => {
-        console.log("[DEBUG] setEvents: prev件数=", prev.length, "→ next件数=", prev.length + 1);
-        return [...prev, newEv];
-      });
+      const newEv = { id:`ev_${Date.now()}`, date:formDate, title:fullTitle, category:formCat };
+      setEvents(prev => [...prev, newEv]);
     }
     setShowForm(false); setEditEvent(null);
   };
@@ -1880,6 +1886,17 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
         <div style={{ background:"white", borderRadius:16, padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>日付</div>
           <input type="date" value={formDate} onChange={e=>setFormDate(e.target.value)} style={{ width:"100%", padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:15, marginBottom:14, outline:"none" }}/>
+          <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>所属</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
+            {SCHOOL_OPTIONS.map(s => {
+              const col = {"八木山中":"#0284c7","八木山小":"#059669","八木山南小":"#7c3aed","芦口小":"#d97706","地域":"#dc2626"}[s];
+              return (
+                <button key={s} onClick={()=>setFormSchool(s)} style={{ padding:"8px 14px", borderRadius:10, border:`2px solid ${formSchool===s?col:"#e5e7eb"}`, background:formSchool===s?col+"18":"white", color:formSchool===s?col:"#64748b", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                  {s==="地域"?"🏘️":"🏫"} {s}
+                </button>
+              );
+            })}
+          </div>
           <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>タイトル</div>
           <input value={formTitle} onChange={e=>setFormTitle(e.target.value)} placeholder="例：PTA総会" style={{ width:"100%", padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:15, marginBottom:14, outline:"none" }}/>
           <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>カテゴリ</div>
@@ -5130,11 +5147,8 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "events"), (snap) => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      console.log("[DEBUG] onSnapshot: Firestoreから", data.length, "件のイベント取得");
       setEventsLocal(data);
       eventsLoaded.current = true;
-    }, (error) => {
-      console.error("[DEBUG] onSnapshot ERROR:", error);
     });
     return unsub;
   }, []);
@@ -5168,7 +5182,6 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
           ops.push({ type: "delete", ev });
         }
       }
-      console.log("[DEBUG] syncEventsToFirestore: prev=", prev.length, "next=", next.length, "ops=", ops.length, ops.map(o => `${o.type}:${o.ev.id}`));
       if (ops.length === 0) return;
 
       // 500件ずつバッチ分割（Firestore上限）
