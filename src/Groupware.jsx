@@ -1749,7 +1749,12 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
     if (editEvent) {
       setEvents(prev => prev.map(ev => ev.id === editEvent.id ? { ...ev, date:formDate, title:formTitle.trim(), category:formCat } : ev));
     } else {
-      setEvents(prev => [...prev, { id:`ev_${Date.now()}`, date:formDate, title:formTitle.trim(), category:formCat }]);
+      const newEv = { id:`ev_${Date.now()}`, date:formDate, title:formTitle.trim(), category:formCat };
+      console.log("[DEBUG] handleSave: 追加するイベント:", JSON.stringify(newEv));
+      setEvents(prev => {
+        console.log("[DEBUG] setEvents: prev件数=", prev.length, "→ next件数=", prev.length + 1);
+        return [...prev, newEv];
+      });
     }
     setShowForm(false); setEditEvent(null);
   };
@@ -5125,8 +5130,11 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "events"), (snap) => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      console.log("[DEBUG] onSnapshot: Firestoreから", data.length, "件のイベント取得");
       setEventsLocal(data);
       eventsLoaded.current = true;
+    }, (error) => {
+      console.error("[DEBUG] onSnapshot ERROR:", error);
     });
     return unsub;
   }, []);
@@ -5160,6 +5168,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
           ops.push({ type: "delete", ev });
         }
       }
+      console.log("[DEBUG] syncEventsToFirestore: prev=", prev.length, "next=", next.length, "ops=", ops.length, ops.map(o => `${o.type}:${o.ev.id}`));
       if (ops.length === 0) return;
 
       // 500件ずつバッチ分割（Firestore上限）
