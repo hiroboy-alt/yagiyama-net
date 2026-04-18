@@ -2006,7 +2006,39 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
           {isAdmin && (
             <button onClick={()=>openAddForm(selStr)} style={{ width:"100%", padding:"14px", borderRadius:14, border:"2px dashed #0284c7", background:"#eff6ff", color:"#0284c7", fontWeight:800, fontSize:14, cursor:"pointer", marginBottom:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>＋ この日に予定を追加</button>
           )}
-          {selectedEvents.length === 0 ? (
+          {/* 休校日表示 */}
+          {(() => {
+            const SCHOOL_COLORS_DETAIL = {"all":"#f59e0b","八木山中":"#0284c7","八木山小":"#059669","八木山南小":"#7c3aed","芦口小":"#d97706"};
+            const dayHols = schoolHolidays.filter(h => h.date === selStr);
+            if (dayHols.length > 0) return (
+              <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:12 }}>
+                {dayHols.map(h => {
+                  const hSchool = h.school === "all" ? "全校" : h.school;
+                  const hColor = SCHOOL_COLORS_DETAIL[h.school] || "#f59e0b";
+                  return (
+                    <div key={h.id} style={{ background:"white", borderRadius:14, padding:"16px", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", borderLeft:`4px solid ${hColor}` }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:18 }}>📕</span>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>休校日{h.label ? `（${h.label}）` : ""}</div>
+                          <span style={{ fontSize:11, fontWeight:700, color:hColor, background:hColor+"15", padding:"1px 6px", borderRadius:4 }}>{hSchool}</span>
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                          <button onClick={()=>{ if(confirm("この休校日を削除しますか？")) removeSchoolHoliday(h.id); }} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:"#fef2f2", color:"#dc2626", fontWeight:700, fontSize:13, cursor:"pointer" }}>🗑 削除</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+            return null;
+          })()}
+
+          {/* 予定表示 */}
+          {selectedEvents.length === 0 && schoolHolidays.filter(h=>h.date===selStr).length === 0 ? (
             <div style={{ textAlign:"center", color:"#94a3b8", fontSize:14, marginTop:40 }}>この日の予定はありません</div>
           ) : (
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
