@@ -1555,7 +1555,12 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
   // 選択日の予定
   const todayStr = dateStr(today.getFullYear(),today.getMonth(),today.getDate());
   const selectedDateStr = selectedDate ? dateStr(year,month,selectedDate) : null;
-  const selectedEvents = selectedDate ? events.filter(ev => ev.date === selectedDateStr && (!filterCat || ev.category === filterCat)) : [];
+  const getSchoolFromTitleGlobal = (title) => { const m = title.match(/^\[(.+?)\]/); return m ? m[1] : null; };
+  const selectedEvents = selectedDate ? events.filter(ev => {
+    if (ev.date !== selectedDateStr) return false;
+    if (!filterCat) return true;
+    return getSchoolFromTitleGlobal(ev.title) === filterCat;
+  }) : [];
 
   // --- CSVパーサー（2形式対応）---
   // 形式A: 日付,学校名,タイトル,カテゴリ → 学校選択付きプレビュー
@@ -2007,16 +2012,26 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {selectedEvents.map(ev => {
                 const cat = getCategoryById(ev.category);
+                const school = getSchoolFromTitleGlobal(ev.title);
+                const displayTitle = ev.title.replace(/^\[.+?\]\s*/, "");
                 return (
-                  <div key={ev.id} onClick={isAdmin?()=>openEditForm(ev):undefined} style={{ background:"white", borderRadius:14, padding:"16px", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", borderLeft:`4px solid ${cat.color}`, cursor:isAdmin?"pointer":"default" }}>
+                  <div key={ev.id} style={{ background:"white", borderRadius:14, padding:"16px", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", borderLeft:`4px solid ${cat.color}` }}>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       <span style={{ fontSize:18 }}>{cat.icon}</span>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>{ev.title}</div>
-                        <div style={{ fontSize:11, color:cat.color, fontWeight:700, marginTop:2 }}>{cat.label}</div>
+                        <div style={{ fontWeight:700, fontSize:15, color:"#0f172a" }}>{displayTitle}</div>
+                        <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:2 }}>
+                          {school && <span style={{ fontSize:10, fontWeight:700, color:cat.color, background:cat.color+"15", padding:"1px 6px", borderRadius:4 }}>{school}</span>}
+                          <span style={{ fontSize:11, color:cat.color, fontWeight:700 }}>{cat.label}</span>
+                        </div>
                       </div>
-                      {isAdmin && <span style={{ color:"#cbd5e1", fontSize:16 }}>✎</span>}
                     </div>
+                    {isAdmin && (
+                      <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                        <button onClick={()=>openEditForm(ev)} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:"#eff6ff", color:"#0284c7", fontWeight:700, fontSize:13, cursor:"pointer" }}>✎ 編集</button>
+                        <button onClick={()=>{ if(confirm("この予定を削除しますか？")) { handleDelete(ev.id); setSelectedDate(null); }}} style={{ padding:"10px 16px", borderRadius:10, border:"none", background:"#fef2f2", color:"#dc2626", fontWeight:700, fontSize:13, cursor:"pointer" }}>🗑 削除</button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
