@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     // 送信元（Resend無料枠のデフォルトドメイン）
     // 独自ドメイン設定後は "noreply@yourdomain.com" に変更
-    const from = `${senderName || "八木中ネット"} <onboarding@resend.dev>`;
+    const from = `${senderName || "八木中ネット"} <noreply@yagiyama-net.com>`;
 
     // Resend APIはto配列を最大50件まで受付
     // 50件超の場合はバッチ分割
