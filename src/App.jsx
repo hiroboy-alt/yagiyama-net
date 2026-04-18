@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth, db } from "./firebase";
 import {
   createUserWithEmailAndPassword,
@@ -7,9 +7,9 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 import {
-  doc, setDoc, getDoc, collection, getDocs,
+  doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch,
 } from "firebase/firestore";
-import GroupwareApp from "./Groupware.jsx";
+import GroupwareApp, { CalendarScreen } from "./Groupware.jsx";
 
 const MAX_W = 540;
 
@@ -65,6 +65,62 @@ export default function App() {
     return unsub;
   }, []);
 
+  // カレンダー用: Firestore events & schoolHolidays
+  const [calEvents, setCalEventsLocal] = useState([]);
+  const calEventsRef = useRef([]);
+  useEffect(() => { calEventsRef.current = calEvents; }, [calEvents]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "events"), (snap) => {
+      setCalEventsLocal(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+  const setCalEvents = (updater) => {
+    const prev = calEventsRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    setCalEventsLocal(next);
+    // Firestoreに差分同期
+    const prevMap = new Map(prev.map(e => [e.id, e]));
+    const nextIds = new Set(next.map(e => e.id));
+    const ops = [];
+    for (const ev of next) {
+      const old = prevMap.get(ev.id);
+      if (!old || old.date !== ev.date || old.title !== ev.title || old.category !== ev.category) ops.push({ type: "set", ev });
+    }
+    for (const ev of prev) { if (!nextIds.has(ev.id)) ops.push({ type: "delete", ev }); }
+    if (ops.length > 0) {
+      const batch = writeBatch(db);
+      ops.forEach(op => {
+        const ref = doc(db, "events", op.ev.id);
+        if (op.type === "set") { const { id, ...data } = op.ev; batch.set(ref, data); }
+        else batch.delete(ref);
+      });
+      batch.commit().catch(e => console.error("Calendar sync error:", e));
+    }
+  };
+  const [calHolidays, setCalHolidays] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "schoolHolidays"), (snap) => {
+      setCalHolidays(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+  const addCalHoliday = async (date, school, label) => {
+    await addDoc(collection(db, "schoolHolidays"), { date, school, label: label || "", createdAt: new Date().toISOString() });
+  };
+  const removeCalHoliday = async (id) => {
+    await deleteDoc(doc(db, "schoolHolidays", id));
+  };
+
+  // カレンダー用の仮ユーザー（roleで管理者判定）
+  const calUser = profile ? {
+    id: user?.uid || "u0",
+    name: profile.name,
+    nickname: profile.name,
+    role: profile.role || (profile.category === "保護者" ? (profile.ptaRole || "一般") : profile.category),
+    avatar: "👤",
+  } : null;
+
   if (loading) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:BG }}>
       <div style={{ textAlign:"center" }}>
@@ -81,6 +137,11 @@ export default function App() {
         {screen === "register" && <RegisterScreen user={user} onComplete={(p)=>{setProfile(p);setScreen("home");}} onSwitch={()=>setScreen("login")} />}
         {screen === "home" && <HomeScreen profile={profile} onLogout={async()=>{await signOut(auth);setProfile(null);setScreen("login");}} onOpenApp={(appId)=>setScreen(appId)} />}
         {screen === "groupware" && <GroupwareApp firebaseUser={{...profile, uid:user?.uid}} onBackToHome={()=>setScreen("home")} />}
+        {screen === "calendar" && calUser && (
+          <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
+            <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={calEvents} setEvents={setCalEvents} currentUser={calUser} schoolHolidays={calHolidays} addSchoolHoliday={addCalHoliday} removeSchoolHoliday={removeCalHoliday} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -416,8 +477,10 @@ function ConfirmRow({ label, value }) {
 
 // ======== ホーム画面（ランチャー） ========
 function HomeScreen({ profile, onLogout, onOpenApp }) {
+  const isChiiki = profile?.category === "地域";
   const apps = [
-    { id:"groupware", name:"グループウェア", icon:"💬", desc:"お知らせ・チャット・アンケート", color:"#1a73e8", available:true },
+    ...(!isChiiki ? [{ id:"groupware", name:"グループウェア", icon:"💬", desc:"お知らせ・チャット・アンケート", color:"#1a73e8", available:true }] : []),
+    { id:"calendar", name:"カレンダー", icon:"📅", desc:"学校行事・PTA・地域の予定", color:"#0284c7", available:true },
     { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#0d9488", available:true, url:"https://mimamori-navi.vercel.app" },
     { id:"eventnavi", name:"イベントナビ", icon:"🎪", desc:"イベント管理・参加受付", color:"#d97706", available:true, url:"https://eventnavi.vercel.app" },
   ];

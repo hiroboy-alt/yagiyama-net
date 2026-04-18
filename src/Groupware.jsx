@@ -1500,7 +1500,7 @@ function SurveyTab({ surveys, setSurveys, currentUser, onHome, onAddNotice }) {
 // ============================================================
 // カレンダー画面
 // ============================================================
-function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, schoolHolidays=[], addSchoolHoliday, removeSchoolHoliday }) {
+export function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, schoolHolidays=[], addSchoolHoliday, removeSchoolHoliday }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
