@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "./firebase";
-import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, writeBatch } from "firebase/firestore";
 
 // 軽量CSVパーサー（引用符内改行対応）
 function parseCSVText(text) {
@@ -1500,7 +1500,7 @@ function SurveyTab({ surveys, setSurveys, currentUser, onHome, onAddNotice }) {
 // ============================================================
 // カレンダー画面
 // ============================================================
-function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
+function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, schoolHolidays=[], addSchoolHoliday, removeSchoolHoliday }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -1515,6 +1515,10 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
   const [importMsg, setImportMsg] = useState(null);
   const [importPreview, setImportPreview] = useState(null); // { events:[], schools:[], selectedSchools:Set }
   const [importLoading, setImportLoading] = useState(false);
+  const [showHolidayForm, setShowHolidayForm] = useState(false);
+  const [holidayDate, setHolidayDate] = useState("");
+  const [holidaySchool, setHolidaySchool] = useState("all");
+  const [holidayLabel, setHolidayLabel] = useState("");
 
   const isAdmin = canPostImportant(currentUser.role);
 
@@ -1878,6 +1882,60 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
     );
   }
 
+  // 休校日設定モーダル
+  if (showHolidayForm) return (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8" }}>
+      <Header title="📕 休校日設定" onBack={()=>setShowHolidayForm(false)} onHome={onHome}/>
+      <div style={{ flex:1, overflow:"auto", padding:"16px" }}>
+        <div style={{ background:"white", borderRadius:16, padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>日付</div>
+          <input type="date" value={holidayDate} onChange={e=>setHolidayDate(e.target.value)} style={{ width:"100%", padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:15, marginBottom:14, outline:"none" }}/>
+          <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>対象学校</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
+            {[{id:"all",label:"全校"},{id:"八木山中",label:"八木山中"},{id:"八木山小",label:"八木山小"},{id:"八木山南小",label:"八木山南小"},{id:"芦口小",label:"芦口小"}].map(s=>{
+              const col = {"all":"#f59e0b","八木山中":"#0284c7","八木山小":"#059669","八木山南小":"#7c3aed","芦口小":"#d97706"}[s.id];
+              return (
+                <button key={s.id} onClick={()=>setHolidaySchool(s.id)} style={{ padding:"8px 14px", borderRadius:10, border:`2px solid ${holidaySchool===s.id?col:"#e5e7eb"}`, background:holidaySchool===s.id?col+"18":"white", color:holidaySchool===s.id?col:"#64748b", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                  {s.id==="all"?"🏫":"🏫"} {s.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>理由（任意）</div>
+          <input value={holidayLabel} onChange={e=>setHolidayLabel(e.target.value)} placeholder="例：創立記念日" style={{ width:"100%", padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:15, marginBottom:14, outline:"none" }}/>
+          <button onClick={()=>{
+            if (!holidayDate) return;
+            addSchoolHoliday(holidayDate, holidaySchool, holidayLabel);
+            setHolidayDate(""); setHolidayLabel(""); setHolidaySchool("all");
+          }} disabled={!holidayDate} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:holidayDate?"linear-gradient(135deg,#f59e0b,#d97706)":"#e5e7eb", color:"white", fontWeight:800, fontSize:15, cursor:holidayDate?"pointer":"not-allowed" }}>
+            休校日を追加
+          </button>
+        </div>
+
+        {/* 登録済み休校日一覧 */}
+        <div style={{ background:"white", borderRadius:16, padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize:15, fontWeight:800, color:"#0f172a", marginBottom:12 }}>登録済みの休校日</div>
+          {schoolHolidays.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"20px", color:"#94a3b8", fontSize:13 }}>まだ休校日が登録されていません</div>
+          ) : (
+            schoolHolidays.sort((a,b)=>a.date.localeCompare(b.date)).map(h => {
+              const hSchool = h.school === "all" ? "全校" : h.school;
+              const hColor = {"all":"#f59e0b","八木山中":"#0284c7","八木山小":"#059669","八木山南小":"#7c3aed","芦口小":"#d97706"}[h.school] || "#f59e0b";
+              return (
+                <div key={h.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:"1px solid #f1f5f9" }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:"#0f172a", minWidth:90 }}>{h.date}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:hColor, background:hColor+"15", padding:"2px 8px", borderRadius:6 }}>{hSchool}</span>
+                  <span style={{ fontSize:12, color:"#64748b", flex:1 }}>{h.label}</span>
+                  <button onClick={()=>removeSchoolHoliday(h.id)} style={{ padding:"4px 10px", borderRadius:6, border:"none", background:"#fef2f2", color:"#dc2626", fontSize:11, fontWeight:700, cursor:"pointer" }}>削除</button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   // 予定フォームモーダル
   if (showForm) return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8" }}>
@@ -1974,6 +2032,7 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
               <input type="file" accept=".csv" onChange={handleImport} disabled={importLoading} style={{ display:"none" }}/>
             </label>
             <button onClick={()=>openAddForm(null)} style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:800, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>＋ 予定追加</button>
+            <button onClick={()=>setShowHolidayForm(true)} style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#f59e0b,#d97706)", color:"white", fontWeight:800, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>📕 休校日設定</button>
           </div>
         )}
 
@@ -2020,21 +2079,24 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
               const dow = dt.getDay();
               const holiday = HOLIDAYS[ds];
               const dayEvs = events.filter(ev => ev.date === ds && matchFilter(ev));
-              allDays.push({ d, ds, dow, holiday, dayEvs });
+              // 学校別休校日
+              const dayHolidays = schoolHolidays.filter(h => h.date === ds && (!filterCat || filterCat === "地域" ? true : (h.school === filterCat || h.school === "all")));
+              allDays.push({ d, ds, dow, holiday, dayEvs, dayHolidays });
             }
-            return allDays.map(({ d, ds, dow, holiday, dayEvs }) => {
+            return allDays.map(({ d, ds, dow, holiday, dayEvs, dayHolidays }) => {
               const isSun = dow === 0;
               const isSat = dow === 6;
               const isHoliday = !!holiday;
               const isRed = isSun || isHoliday;
               const isTodayRow = ds === todayStr;
+              const hasSchoolHoliday = dayHolidays.length > 0;
               const hasEvents = dayEvs.length > 0;
               return (
                 <div key={d} onClick={()=>setSelectedDate(d)} style={{
                   display:"flex", gap:0, padding:"8px 10px", borderRadius:10, cursor:"pointer",
-                  background: isTodayRow ? "#eff6ff" : hasEvents ? "#fafbfc" : "transparent",
+                  background: isTodayRow ? "#eff6ff" : hasSchoolHoliday ? "#fef9f0" : hasEvents ? "#fafbfc" : "transparent",
                   borderBottom: "1px solid #f1f5f9",
-                  borderLeft: isTodayRow ? "3px solid #0284c7" : "3px solid transparent"
+                  borderLeft: isTodayRow ? "3px solid #0284c7" : hasSchoolHoliday ? "3px solid #f59e0b" : "3px solid transparent"
                 }}>
                   {/* 日付・曜日 */}
                   <div style={{ minWidth:54, flexShrink:0, display:"flex", alignItems:"flex-start", gap:4, paddingTop:2 }}>
@@ -2046,6 +2108,15 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser }) {
                     {isHoliday && (
                       <span style={{ fontSize:11, fontWeight:700, color:"#dc2626", background:"#fef2f2", padding:"1px 6px", borderRadius:4, alignSelf:"flex-start" }}>🎌 {holiday}</span>
                     )}
+                    {dayHolidays.map((h, j) => {
+                      const hSchool = h.school === "all" ? "全校" : h.school;
+                      const hColor = SCHOOL_COLORS[h.school] || "#f59e0b";
+                      return (
+                        <span key={`h${j}`} style={{ fontSize:11, fontWeight:700, color:hColor, background:hColor+"15", padding:"1px 6px", borderRadius:4, alignSelf:"flex-start" }}>
+                          📕 {hSchool}休校{h.label ? `（${h.label}）` : ""}
+                        </span>
+                      );
+                    })}
                     {dayEvs.map((ev, j) => {
                       const school = getSchoolFromTitle(ev.title);
                       const sColor = school ? (SCHOOL_COLORS[school] || "#64748b") : "#64748b";
@@ -5153,6 +5224,21 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     return unsub;
   }, []);
 
+  // Firestore: schoolHolidays（学校別休校日）をリアルタイム読み込み
+  const [schoolHolidays, setSchoolHolidays] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "schoolHolidays"), (snap) => {
+      setSchoolHolidays(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+  const addSchoolHoliday = async (date, school, label) => {
+    await addDoc(collection(db, "schoolHolidays"), { date, school, label: label || "", createdAt: new Date().toISOString() });
+  };
+  const removeSchoolHoliday = async (id) => {
+    await deleteDoc(doc(db, "schoolHolidays", id));
+  };
+
   // setEventsラッパー: ローカルstate更新 + Firestoreに差分書き込み
   const eventsRef = useRef([]);
   useEffect(() => { eventsRef.current = events; }, [events]);
@@ -5270,7 +5356,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       <style>{CSS}</style>
       {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }}/>}
       {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits}/>}
-      {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser}/>}
+      {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} schoolHolidays={schoolHolidays} addSchoolHoliday={addSchoolHoliday} removeSchoolHoliday={removeSchoolHoliday}/>}
       {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")}/>}
       {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms}/>}
     </div>
