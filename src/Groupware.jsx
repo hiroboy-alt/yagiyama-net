@@ -1516,7 +1516,8 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
   const [importPreview, setImportPreview] = useState(null); // { events:[], schools:[], selectedSchools:Set }
   const [importLoading, setImportLoading] = useState(false);
   const [showHolidayForm, setShowHolidayForm] = useState(false);
-  const [holidayDate, setHolidayDate] = useState("");
+  const [holidayDateFrom, setHolidayDateFrom] = useState("");
+  const [holidayDateTo, setHolidayDateTo] = useState("");
   const [holidaySchool, setHolidaySchool] = useState("all");
   const [holidayLabel, setHolidayLabel] = useState("");
 
@@ -1888,8 +1889,13 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
       <Header title="📕 休校日設定" onBack={()=>setShowHolidayForm(false)} onHome={onHome}/>
       <div style={{ flex:1, overflow:"auto", padding:"16px" }}>
         <div style={{ background:"white", borderRadius:16, padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>日付</div>
-          <input type="date" value={holidayDate} onChange={e=>setHolidayDate(e.target.value)} style={{ width:"100%", padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:15, marginBottom:14, outline:"none" }}/>
+          <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>期間</div>
+          <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:14 }}>
+            <input type="date" value={holidayDateFrom} onChange={e=>setHolidayDateFrom(e.target.value)} style={{ flex:1, padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:14, outline:"none" }}/>
+            <span style={{ color:"#94a3b8", fontWeight:700, fontSize:13 }}>〜</span>
+            <input type="date" value={holidayDateTo} onChange={e=>setHolidayDateTo(e.target.value)} style={{ flex:1, padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:14, outline:"none" }}/>
+          </div>
+          <div style={{ fontSize:11, color:"#94a3b8", marginBottom:14 }}>※ 1日だけの場合は開始日のみ入力</div>
           <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>対象学校</div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
             {[{id:"all",label:"全校"},{id:"八木山中",label:"八木山中"},{id:"八木山小",label:"八木山小"},{id:"八木山南小",label:"八木山南小"},{id:"芦口小",label:"芦口小"}].map(s=>{
@@ -1904,11 +1910,19 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
           <div style={{ fontSize:13, fontWeight:700, color:"#64748b", marginBottom:6 }}>理由（任意）</div>
           <input value={holidayLabel} onChange={e=>setHolidayLabel(e.target.value)} placeholder="例：創立記念日" style={{ width:"100%", padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:15, marginBottom:14, outline:"none" }}/>
           <button onClick={()=>{
-            if (!holidayDate) return;
-            addSchoolHoliday(holidayDate, holidaySchool, holidayLabel);
-            setHolidayDate(""); setHolidayLabel(""); setHolidaySchool("all");
-          }} disabled={!holidayDate} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:holidayDate?"linear-gradient(135deg,#f59e0b,#d97706)":"#e5e7eb", color:"white", fontWeight:800, fontSize:15, cursor:holidayDate?"pointer":"not-allowed" }}>
-            休校日を追加
+            if (!holidayDateFrom) return;
+            const from = new Date(holidayDateFrom + "T00:00:00");
+            const to = holidayDateTo ? new Date(holidayDateTo + "T00:00:00") : from;
+            if (to < from) { alert("終了日は開始日以降にしてください"); return; }
+            const dates = [];
+            for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+              dates.push(d.toISOString().split("T")[0]);
+            }
+            dates.forEach(dt => addSchoolHoliday(dt, holidaySchool, holidayLabel));
+            alert(`${dates.length}日間の休校日を登録しました`);
+            setHolidayDateFrom(""); setHolidayDateTo(""); setHolidayLabel(""); setHolidaySchool("all");
+          }} disabled={!holidayDateFrom} style={{ width:"100%", padding:"14px", borderRadius:12, border:"none", background:holidayDateFrom?"linear-gradient(135deg,#f59e0b,#d97706)":"#e5e7eb", color:"white", fontWeight:800, fontSize:15, cursor:holidayDateFrom?"pointer":"not-allowed" }}>
+            休校日を追加{holidayDateFrom && holidayDateTo && holidayDateFrom !== holidayDateTo ? `（${Math.round((new Date(holidayDateTo+"T00:00:00")-new Date(holidayDateFrom+"T00:00:00"))/86400000)+1}日間）` : ""}
           </button>
         </div>
 
