@@ -1920,8 +1920,9 @@ function CalendarScreen({ onBack, onHome, events, setEvents, currentUser, school
             const to = holidayDateTo ? new Date(holidayDateTo + "T00:00:00") : from;
             if (to < from) { alert("終了日は開始日以降にしてください"); return; }
             const dates = [];
+            const pad2 = n => String(n).padStart(2, "0");
             for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-              dates.push(d.toISOString().split("T")[0]);
+              dates.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`);
             }
             dates.forEach(dt => addSchoolHoliday(dt, holidaySchool, holidayLabel));
             alert(`${dates.length}日間の休校日を登録しました`);
