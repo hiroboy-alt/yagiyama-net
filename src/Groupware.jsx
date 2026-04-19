@@ -97,6 +97,7 @@ const canWriteChannel = (ch, user) => {
   return false; // 本部役員の閲覧のみはfalse
 };
 
+// ※ 以下のデモデータは統合認証後は使用されません。実際のメンバーはFirestoreのusersコレクションから取得されます。
 const USERS = [
   { id:"u1", name:"伊藤 宏明", nickname:"いとう", role:"会長",   avatar:"👑", grade:"3年", club:"サッカー部", district:"八木山本町", email:"hiro.hboy@gmail.com" },
   { id:"u2", name:"佐藤 花子", nickname:"さとう", role:"副会長", avatar:"🌸", grade:"2年", club:"吹奏楽部", district:"緑ヶ丘", email:"" },
@@ -493,7 +494,7 @@ function MiniCalendar({ events = [] }) {
 // ============================================================
 // お知らせ一覧・詳細
 // ============================================================
-function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits }) {
+function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits, members=[] }) {
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showReadList, setShowReadList] = useState(false);
@@ -644,7 +645,7 @@ function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecord
   if (detail) {
     const readers = readRecords[detail.id] || [];
     const readNames = readers.map(r => r.name);
-    const unreadUsers = USERS.filter(u => !readers.some(r => r.userId === u.id));
+    const unreadUsers = members.filter(u => !readers.some(r => r.userId === u.id));
     const readCount = readers.length;
     const unreadCount = unreadUsers.length;
 
@@ -1129,7 +1130,7 @@ function RecruitTab({ recruits, setRecruits, currentUser, onHome, onAddNotice })
             {/* 未回答者 */}
             {(() => {
               const respondedIds = Object.keys(current.responses);
-              const unresponded = USERS.filter(u => !respondedIds.includes(u.id));
+              const unresponded = members.filter(u => !respondedIds.includes(u.id));
               if (unresponded.length === 0) return null;
               return (
                 <div style={{ marginTop:16 }}>
@@ -1149,7 +1150,7 @@ function RecruitTab({ recruits, setRecruits, currentUser, onHome, onAddNotice })
               const rows = [["氏名","回答"]];
               Object.values(current.responses).forEach(r => rows.push([r.name, r.status]));
               const respondedIds = Object.keys(current.responses);
-              USERS.filter(u => !respondedIds.includes(u.id)).forEach(u => rows.push([u.name, "未回答"]));
+              members.filter(u => !respondedIds.includes(u.id)).forEach(u => rows.push([u.name, "未回答"]));
               downloadExcel([{ name:"募集結果", rows }], `募集_${current.title}.xlsx`);
             }} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#059669,#047857)", color:"white", fontWeight:800, fontSize:13, cursor:"pointer", marginTop:12, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>📥 Excelでダウンロード</button>
           </div>
@@ -5007,7 +5008,7 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   );
 }
 
-function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome }) {
+function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, members=[] }) {
   const [tab, setTab] = useState("channels");
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeDM, setActiveDM] = useState(null);
@@ -5028,7 +5029,7 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
     ]},
   ];
 
-  const others = USERS.filter(u=>u.id!==currentUser.id);
+  const others = members.filter(u=>u.id!==currentUser.id);
   const toggleCat = (catId) => setOpenCats(prev => ({ ...prev, [catId]: !prev[catId] }));
 
   // メンバー行の共通レンダー
@@ -5274,6 +5275,30 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     await deleteDoc(doc(db, "schoolHolidays", id));
   };
 
+  // Firestoreから実際の登録メンバーを取得（USERSハードコードの代替）
+  const [registeredMembers, setRegisteredMembers] = useState([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "users"), (snap) => {
+      setRegisteredMembers(snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          name: data.name || "?",
+          nickname: (data.name || "?").split(" ")[0],
+          role: data.role || data.ptaRole || "一般",
+          avatar: data.category === "先生" ? "🎓" : data.category === "地域" ? "🏘️" : "👤",
+          grade: data.children?.[0]?.grade || "",
+          club: data.children?.[0]?.club || "",
+          district: data.district || "",
+          email: data.email || "",
+          category: data.category || "",
+          children: data.children || [],
+        };
+      }));
+    });
+    return unsub;
+  }, []);
+
   // setEventsラッパー: ローカルstate更新 + Firestoreに差分書き込み
   const eventsRef = useRef([]);
   useEffect(() => { eventsRef.current = events; }, [events]);
@@ -5394,9 +5419,9 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
       {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }}/>}
-      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits}/>}
+      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} members={registeredMembers}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} schoolHolidays={schoolHolidays} addSchoolHoliday={addSchoolHoliday} removeSchoolHoliday={removeSchoolHoliday}/>}
-      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")}/>}
+      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} members={registeredMembers}/>}
       {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms}/>}
     </div>
   );
