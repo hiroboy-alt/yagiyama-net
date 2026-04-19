@@ -989,7 +989,7 @@ function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, o
         <div className="card-buttons" style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
           <button onClick={() => onViewDetail(event)} style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: "2px solid #667eea", background: "white", color: "#667eea", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>詳細</button>
 
-          {currentUser.role === "participant" && event.status === "approved" && (
+          {event.status === "approved" && currentUser.id !== event.organizerId && (
             <>
               <button onClick={() => onOpenApply(event, event.type === "volunteer" ? "volunteer" : "participant")} disabled={(isApplied || isVolApplied) || isFull} style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: "none", background: (isApplied || isVolApplied) ? "#dcfce7" : isFull ? "#fee2e2" : event.type === "volunteer" ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "linear-gradient(135deg,#667eea,#764ba2)", color: (isApplied || isVolApplied) ? "#16a34a" : isFull ? "#dc2626" : "white", cursor: (isApplied || isVolApplied) || isFull ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700 }}>
                 {(isApplied || isVolApplied) ? "✓ 申込済み" : isFull ? "満員" : "参加申込"}
@@ -1001,7 +1001,7 @@ function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, o
             </>
           )}
 
-          {currentUser.role === "organizer" && currentUser.id === event.organizerId && (
+          {currentUser.id === event.organizerId && (
             <>
               <button onClick={() => onEdit(event)} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️ 編集</button>
               <button onClick={() => onEmergency(event)} style={{ padding: "8px 12px", borderRadius: 10, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontSize: 12, fontWeight: 800 }}>📣 緊急連絡</button>
@@ -1640,7 +1640,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
   const threeMonthsLater = new Date(); threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
   const threeMonthsStr = `${threeMonthsLater.getFullYear()}-${String(threeMonthsLater.getMonth()+1).padStart(2,"0")}-${String(threeMonthsLater.getDate()).padStart(2,"0")}`;
   const filteredEvents = events.filter(ev => {
-    const roleOk = currentUser?.role !== "participant" || ev.status === "approved";
+    const roleOk = currentUser?.role === "admin" || ev.status === "approved" || ev.organizerId === currentUser?.id;
     const catOk = filter === "すべて" || ev.type === filter;
     const searchOk = !searchQ || ev.title.includes(searchQ) || ev.description.includes(searchQ);
     const notExpired = daysUntil(ev.date) !== "終了";
@@ -2084,8 +2084,8 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
             🔔{unread > 0 && <span style={{ position: "absolute", top: 3, right: 3, background: "#ef4444", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{unread}</span>}
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: ROLE_THEME[currentUser.role].light, borderRadius: 10, padding: "5px 12px", border: `1px solid ${ROLE_THEME[currentUser.role].headerBorder}` }}>
-            <span style={{ fontSize: 17 }}>{currentUser.role === "participant" ? "👤" : currentUser.role === "organizer" ? "🏢" : "⚙️"}</span>
-            <div><div className="header-user-name" style={{ fontSize: 12, fontWeight: 700, color: "#1e1b4b" }}>{currentUser.name}</div><div style={{ fontSize: 10, color: "#94a3b8" }}>{currentUser.role === "participant" ? "参加者" : currentUser.role === "organizer" ? "主催者" : "管理者"}</div></div>
+            <span style={{ fontSize: 17 }}>{currentUser.role === "admin" ? "⚙️" : "👤"}</span>
+            <div><div className="header-user-name" style={{ fontSize: 12, fontWeight: 700, color: "#1e1b4b" }}>{currentUser.name}</div><div style={{ fontSize: 10, color: "#94a3b8" }}>{currentUser.role === "admin" ? "管理者" : (currentUser.actualRole || "参加者")}</div></div>
           </div>
           <button onClick={onBackToHome} style={{ padding: "9px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#0284c7,#0369a1)", color: "white", cursor: "pointer", fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>🏠 ホームに戻る</button>
         </div>
@@ -2101,8 +2101,8 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
         {/* ヒーロー */}
         <div className="hero" style={{ background: ROLE_THEME[currentUser.role].heroBg, borderRadius: 22, padding: "26px 34px", marginBottom: 26, color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 18, transition: "background 0.4s" }}>
           <div>
-            <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800 }}>{currentUser.role === "participant" ? "🎉 今日はどのイベントに参加しますか？" : currentUser.role === "organizer" ? "🏢 主催者メニュー" : "⚙️ 管理者メニュー"}</h2>
-            <p style={{ margin: 0, opacity: 0.85, fontSize: 14 }}>{currentUser.role === "participant" ? "気になるイベントを探して申し込みましょう" : currentUser.role === "organizer" ? "イベントの作成・管理・緊急連絡ができます" : "全イベントの承認・監視ができます"}</p>
+            <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800 }}>{currentUser.role === "admin" ? "⚙️ 管理者メニュー" : "🎉 イベントを探して参加しよう！"}</h2>
+            <p style={{ margin: 0, opacity: 0.85, fontSize: 14 }}>{currentUser.role === "admin" ? "イベントの承認・管理ができます" : "イベントの閲覧・申込・投稿ができます"}</p>
           </div>
           <div className="hero-stats" style={{ display: "flex", gap: 14 }}>
             {[["🎪", events.filter(e => e.status === "approved").length, "承認済み"], ["⏳", events.filter(e => e.status === "pending").length, "審査中"], ["📣", events.reduce((s, e) => s + (e.emergencyNotices?.length || 0), 0), "緊急連絡"]].map(([icon, n, label]) => (
@@ -2117,7 +2117,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
 
         {/* フィルター + 新規投稿 */}
         <div className="filter-bar" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
-          {currentUser.role === "participant" && (
+          {currentUser.role !== "admin" && (
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap", flex: 1 }}>
               {[["すべて","すべて"],["event","📅 イベント"],["volunteer","🙋 ボランティア募集"]].map(([val, label]) => (
                 <button key={val} onClick={() => setFilter(val)} className="filter-chip" style={{ padding: "6px 14px", borderRadius: 20, border: "2px solid", borderColor: filter === val ? ROLE_THEME[currentUser.role].primary : "#e2e8f0", background: filter === val ? ROLE_THEME[currentUser.role].light : "white", color: filter === val ? ROLE_THEME[currentUser.role].primary : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: filter === val ? 700 : 500 }}>{label}</button>
@@ -2125,7 +2125,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
             </div>
           )}
           {currentUser.role !== "participant" && <div style={{ flex: 1 }} />}
-          {(currentUser.role === "organizer" || currentUser.role === "admin") && (
+          {currentUser && (
             <button onClick={() => { setSelectedEvent(null); setModalType("create"); }} style={{ padding: "9px 20px", borderRadius: 13, border: "none", background: ROLE_THEME[currentUser.role].gradient, color: "white", cursor: "pointer", fontWeight: 700, fontSize: 13, boxShadow: `0 4px 15px ${ROLE_THEME[currentUser.role].primary}40` }}>＋ 新規投稿</button>
           )}
         </div>
@@ -2241,12 +2241,12 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
               ))}
             </div>
             <div className="detail-buttons" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {currentUser.role === "participant" && selectedEvent.status === "approved" && (
+              {selectedEvent.status === "approved" && currentUser.id !== selectedEvent.organizerId && (
                 <>
                   <button onClick={() => generateApplicationPDF(selectedEvent, selectedEvent.applicants.find(a => a.id === currentUser.id))} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 申込票を印刷</button>
                 </>
               )}
-              {currentUser.role === "organizer" && currentUser.id === selectedEvent.organizerId && (
+              {currentUser.id === selectedEvent.organizerId && (
                 <>
                   <button onClick={() => setModalType("emergency")} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📣 緊急連絡</button>
                   <button onClick={() => generateFlyerPDF(selectedEvent)} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 フライヤー印刷</button>
