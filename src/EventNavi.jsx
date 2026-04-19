@@ -191,60 +191,60 @@ function generateFlyerPDF(event) {
     /* ── ヘッダー（アイコンに連動したテーマカラー） ── */
     .header { background:linear-gradient(135deg,${th.from},${th.to}); color:white; border-radius:12px; padding:13px 20px; margin-bottom:10px; display:flex; align-items:center; gap:14px; position:relative; overflow:hidden; }
     .header::after { content:''; position:absolute; bottom:-30px; right:-30px; width:120px; height:120px; background:rgba(255,255,255,0.08); border-radius:50%; }
-    .header-icon { font-size:42px; line-height:1; z-index:1; }
+    .header-icon { font-size:48px; line-height:1; z-index:1; }
     .header-body { flex:1; z-index:1; }
     .header-badge { display:inline-block; background:rgba(255,255,255,0.3); border:2px solid rgba(255,255,255,0.5); padding:6px 24px; border-radius:30px; font-size:30px; margin-bottom:8px; font-weight:900; letter-spacing:3px; }
-    .header h1 { font-size:20px; font-weight:900; line-height:1.2; margin-bottom:4px; }
-    .header-date { font-size:12px; opacity:0.95; font-weight:600; line-height:1.5; }
+    .header h1 { font-size:24px; font-weight:900; line-height:1.2; margin-bottom:4px; }
+    .header-date { font-size:14px; opacity:0.95; font-weight:600; line-height:1.5; }
 
     /* ── 情報グリッド ── */
     .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:9px; }
     .info-card { background:${th.cardBg}; border-left:3px solid ${th.border}; border-radius:6px; padding:6px 10px; }
     .info-card.fee { background:#fef3c7; border-left-color:#f59e0b; }
-    .info-label { font-size:9px; color:#888; margin-bottom:1px; letter-spacing:0.3px; }
-    .info-value { font-size:11px; font-weight:700; color:#1e1b4b; line-height:1.3; }
+    .info-label { font-size:11px; color:#888; margin-bottom:1px; letter-spacing:0.3px; }
+    .info-value { font-size:13px; font-weight:700; color:#1e1b4b; line-height:1.3; }
 
     /* ── 詳細説明 + QR ── */
     .desc-row { display:flex; gap:10px; margin-bottom:9px; align-items:flex-start; }
-    .description { flex:1; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; line-height:1.6; font-size:11px; color:#374151; }
-    .description h3 { font-size:10px; font-weight:800; color:${th.accent}; margin-bottom:4px; letter-spacing:1px; }
+    .description { flex:1; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; line-height:1.7; font-size:13px; color:#374151; }
+    .description h3 { font-size:12px; font-weight:800; color:${th.accent}; margin-bottom:4px; letter-spacing:1px; }
     .qr-col { display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; }
     .qr-box { width:90px; height:90px; border-radius:8px; overflow:hidden; }
     .qr-box img { width:100%; height:100%; display:block; }
-    .qr-lbl { font-size:9px; color:#94a3b8; }
+    .qr-lbl { font-size:11px; color:#94a3b8; }
 
     /* ── 切り取り線 ── */
     .cutline-wrap { position:relative; margin:8px 0 7px; }
     .cutline { border:none; border-top:2px dashed #94a3b8; }
-    .cutline-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:0 14px; font-size:11px; color:#94a3b8; letter-spacing:2px; white-space:nowrap; font-weight:600; }
+    .cutline-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:0 14px; font-size:13px; color:#94a3b8; letter-spacing:2px; white-space:nowrap; font-weight:600; }
     .cutline-wrap::before { content:'✂'; position:absolute; left:-2px; top:50%; transform:translateY(-50%); font-size:14px; color:#94a3b8; background:white; padding-right:4px; }
 
     /* ── 申込フォーム ── */
     .form-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
-    .form-badge { background:linear-gradient(135deg,${th.from},${th.to}); color:white; padding:4px 16px; border-radius:20px; font-size:13px; font-weight:800; }
-    .form-event { font-size:12px; color:#64748b; font-weight:500; }
-    .form-note { margin-left:auto; font-size:10px; color:#94a3b8; text-align:right; line-height:1.6; }
+    .form-badge { background:linear-gradient(135deg,${th.from},${th.to}); color:white; padding:5px 18px; border-radius:20px; font-size:15px; font-weight:800; }
+    .form-event { font-size:14px; color:#64748b; font-weight:500; }
+    .form-note { margin-left:auto; font-size:11px; color:#94a3b8; text-align:right; line-height:1.6; }
 
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 12px; }
     .ff { } .ff.full { grid-column:span 2; }
-    .fl { font-size:10px; font-weight:700; color:#475569; margin-bottom:2px; display:flex; align-items:center; gap:3px; }
-    .fl .req { color:#ef4444; } .fl .opt { color:#94a3b8; font-size:10px; font-weight:400; }
-    .wl { display:block; width:100%; height:18px; border:none; border-bottom:1.5px solid #334155; background:transparent; }
-    .wa { display:block; width:100%; height:26px; border:none; border-bottom:1.5px solid #334155; background:transparent; }
+    .fl { font-size:12px; font-weight:700; color:#475569; margin-bottom:2px; display:flex; align-items:center; gap:3px; }
+    .fl .req { color:#ef4444; } .fl .opt { color:#94a3b8; font-size:11px; font-weight:400; }
+    .wl { display:block; width:100%; height:22px; border:none; border-bottom:1.5px solid #334155; background:transparent; }
+    .wa { display:block; width:100%; height:30px; border:none; border-bottom:1.5px solid #334155; background:transparent; }
     .hr { grid-column:span 2; border:none; border-top:1px solid #e2e8f0; margin:2px 0; }
 
     /* ── 区分チェック ── */
     .grade-checks { display:flex; flex-wrap:wrap; gap:3px 10px; padding:3px 0 1px; }
-    .gc { display:flex; align-items:center; gap:4px; font-size:11px; color:#374151; }
-    .cb { width:14px; height:14px; border:1.5px solid #475569; border-radius:3px; display:inline-block; flex-shrink:0; }
+    .gc { display:flex; align-items:center; gap:4px; font-size:13px; color:#374151; }
+    .cb { width:16px; height:16px; border:1.5px solid #475569; border-radius:3px; display:inline-block; flex-shrink:0; }
 
     /* ── 保護者同意欄 ── */
     .guardian { border:2px solid #f59e0b; border-radius:8px; background:#fffbeb; padding:7px 11px; }
-    .guardian-title { font-size:11px; font-weight:800; color:#b45309; margin-bottom:3px; }
-    .guardian-note { font-size:10px; color:#92400e; margin-bottom:5px; line-height:1.5; }
+    .guardian-title { font-size:13px; font-weight:800; color:#b45309; margin-bottom:3px; }
+    .guardian-note { font-size:12px; color:#92400e; margin-bottom:5px; line-height:1.5; }
     .guardian-check { display:flex; gap:7px; align-items:flex-start; margin-bottom:6px; }
-    .cb-lg { width:16px; height:16px; border:2px solid #b45309; border-radius:3px; display:inline-block; flex-shrink:0; margin-top:2px; }
-    .guardian-check-text { font-size:10.5px; color:#374151; line-height:1.6; }
+    .cb-lg { width:18px; height:18px; border:2px solid #b45309; border-radius:3px; display:inline-block; flex-shrink:0; margin-top:2px; }
+    .guardian-check-text { font-size:12px; color:#374151; line-height:1.6; }
     .guardian-signs { display:flex; gap:14px; flex-wrap:wrap; }
     .gs { display:flex; flex-direction:column; gap:3px; flex:1; min-width:90px; }
     .gs-label { font-size:10px; font-weight:700; color:#b45309; }
@@ -253,15 +253,15 @@ function generateFlyerPDF(event) {
 
     /* ── 同意・署名 ── */
     .submit-row { display:flex; justify-content:space-between; align-items:flex-end; margin-top:7px; gap:10px; }
-    .agree-text { font-size:10px; color:#64748b; line-height:1.6; flex:1; }
+    .agree-text { font-size:12px; color:#64748b; line-height:1.6; flex:1; }
     .sign-col { text-align:right; flex-shrink:0; }
-    .sign-lbl { font-size:10px; color:#475569; margin-bottom:4px; }
+    .sign-lbl { font-size:12px; color:#475569; margin-bottom:4px; }
     .sign-line { display:inline-block; border-bottom:1.5px solid #334155; width:130px; height:20px; }
 
     /* ── フッター ── */
     .footer { margin-top:7px; padding-top:6px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
-    .footer-left { font-size:10px; color:#94a3b8; }
-    .footer-logo { font-size:12px; font-weight:800; color:${th.accent}; letter-spacing:1px; }
+    .footer-left { font-size:11px; color:#94a3b8; }
+    .footer-logo { font-size:14px; font-weight:800; color:${th.accent}; letter-spacing:1px; }
 
     @media print {
       body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
