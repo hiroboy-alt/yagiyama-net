@@ -2224,6 +2224,18 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
   const [importLoading, setImportLoading] = useState(false);
   const [importPreview, setImportPreview] = useState(null);
 
+  // Firestoreからメンバー一覧を取得
+  const [firestoreMembers, setFirestoreMembers] = useState([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberCatFilter, setMemberCatFilter] = useState("all"); // all, 保護者, 先生, 地域
+  const [memberRoleFilter, setMemberRoleFilter] = useState("all");
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "users"), (snap) => {
+      setFirestoreMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+
   // --- チャットカテゴリ管理 ---
   const [newChName, setNewChName] = useState("");
   const [newChIcon, setNewChIcon] = useState("📌");
@@ -2938,116 +2950,77 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
         {tab === "members" && (
           <div style={{ background:"white", borderRadius:16, padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
             <div style={{ fontWeight:800, fontSize:15, color:"#0f172a", marginBottom:4 }}>👥 登録メンバー一覧</div>
-            <div style={{ fontSize:12, color:"#64748b", marginBottom:12 }}>{USERS.length}名が登録されています</div>
+            <div style={{ fontSize:12, color:"#64748b", marginBottom:12 }}>{firestoreMembers.length}名が登録されています</div>
 
-            {/* 親チャンネルフィルター */}
+            {/* 検索 */}
+            <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="🔍 氏名・メールアドレスで検索" style={{ width:"100%", padding:"10px 14px", borderRadius:10, border:"2px solid #e5e7eb", fontSize:13, marginBottom:10, outline:"none", boxSizing:"border-box" }}/>
+
+            {/* カテゴリフィルター */}
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
-              <button onClick={()=>{ setMemberFilterCh(null); setMemberFilterSub(null); }} style={{ padding:"6px 12px", borderRadius:8, border:`2px solid ${!memberFilterCh?"#d97706":"#e5e7eb"}`, background:!memberFilterCh?"#d9770618":"white", color:!memberFilterCh?"#d97706":"#64748b", fontSize:11, fontWeight:700, cursor:"pointer" }}>すべて</button>
-              {channels.map(ch => (
-                <button key={ch.id} onClick={()=>{ setMemberFilterCh(memberFilterCh===ch.id?null:ch.id); setMemberFilterSub(null); }} style={{ padding:"6px 12px", borderRadius:8, border:`2px solid ${memberFilterCh===ch.id?"#d97706":"#e5e7eb"}`, background:memberFilterCh===ch.id?"#d9770618":"white", color:memberFilterCh===ch.id?"#d97706":"#64748b", fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:3 }}>
-                  {ch.icon} {ch.name}
-                </button>
+              {[{id:"all",label:"すべて"},{id:"保護者",label:"保護者"},{id:"先生",label:"先生"},{id:"地域",label:"地域"}].map(f => (
+                <button key={f.id} onClick={()=>setMemberCatFilter(f.id)} style={{ padding:"6px 12px", borderRadius:8, border:`2px solid ${memberCatFilter===f.id?"#d97706":"#e5e7eb"}`, background:memberCatFilter===f.id?"#d9770618":"white", color:memberCatFilter===f.id?"#d97706":"#64748b", fontSize:11, fontWeight:700, cursor:"pointer" }}>{f.label}</button>
               ))}
             </div>
 
-            {/* サブチャンネルフィルター（親が選択済み＆子がある場合） */}
-            {memberFilterCh && (() => {
-              const parent = channels.find(c => c.id === memberFilterCh);
-              const subs = parent?.children || [];
-              if (subs.length === 0) return null;
-              return (
-                <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:12, paddingLeft:8, borderLeft:"3px solid #d97706" }}>
-                  <button onClick={()=>setMemberFilterSub(null)} style={{ padding:"5px 10px", borderRadius:6, border:`2px solid ${!memberFilterSub?"#0284c7":"#e5e7eb"}`, background:!memberFilterSub?"#0284c718":"white", color:!memberFilterSub?"#0284c7":"#94a3b8", fontSize:10, fontWeight:700, cursor:"pointer" }}>全{parent.name}</button>
-                  {subs.map(sub => (
-                    <button key={sub.id} onClick={()=>setMemberFilterSub(memberFilterSub===sub.id?null:sub.id)} style={{ padding:"5px 10px", borderRadius:6, border:`2px solid ${memberFilterSub===sub.id?"#0284c7":"#e5e7eb"}`, background:memberFilterSub===sub.id?"#0284c718":"white", color:memberFilterSub===sub.id?"#0284c7":"#94a3b8", fontSize:10, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:3 }}>
-                      {sub.icon} {sub.name}
-                    </button>
-                  ))}
-                </div>
-              );
-            })()}
+            {/* ロールフィルター */}
+            <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:12 }}>
+              {["all","会長","副会長","監事","幹事","会計","事務長","委員長","一般会員","一般"].map(r => (
+                <button key={r} onClick={()=>setMemberRoleFilter(r)} style={{ padding:"4px 10px", borderRadius:6, border:`2px solid ${memberRoleFilter===r?"#0284c7":"#e5e7eb"}`, background:memberRoleFilter===r?"#0284c718":"white", color:memberRoleFilter===r?"#0284c7":"#94a3b8", fontSize:10, fontWeight:700, cursor:"pointer" }}>{r === "all" ? "全ロール" : r}</button>
+              ))}
+            </div>
 
             {/* メンバーリスト */}
             {(() => {
-              // チャンネル名→USERフィールドのマッピング
-              const chFieldMap = { "学年":"grade", "部活":"club", "地区":"district" };
-              const roleFieldMap = { "本部役員":"role", "運営委員会":"role" };
-              
-              let filtered = USERS;
-              
-              if (memberFilterCh) {
-                const parent = channels.find(c => c.id === memberFilterCh);
-                if (!parent) return null;
-                
-                const fieldKey = chFieldMap[parent.name];
-                const roleKey = roleFieldMap[parent.name];
-                
-                if (memberFilterSub) {
-                  // サブチャンネルで絞り込み
-                  const sub = (parent.children||[]).find(s => s.id === memberFilterSub);
-                  if (sub && fieldKey) {
-                    filtered = USERS.filter(u => u[fieldKey] && u[fieldKey].includes(sub.name));
-                  }
-                } else if (fieldKey) {
-                  // 親チャンネルのフィールドが空でないメンバー
-                  filtered = USERS.filter(u => u[fieldKey] && u[fieldKey].trim() !== "");
-                } else if (roleKey) {
-                  // 役職ベース
-                  if (parent.name === "本部役員") filtered = USERS.filter(u => HONBU_ROLES.includes(u.role));
-                  else if (parent.name === "運営委員会") filtered = USERS.filter(u => UNEI_ROLES.includes(u.role));
-                } else if (parent.name === "全体") {
-                  filtered = USERS;
-                } else {
-                  // カスタムチャンネル → 全員表示
-                  filtered = USERS;
-                }
-              }
-
-              // フィルター結果をグループ表示
-              if (!memberFilterCh) {
-                // 全体表示: 役職別
-                const groups = {};
-                filtered.forEach(u => {
-                  const r = ROLES.find(ro => ro.code === u.role);
-                  const label = r ? r.label : u.role;
-                  if (!groups[label]) groups[label] = [];
-                  groups[label].push(u);
-                });
-                return Object.entries(groups).map(([role, users]) => (
-                  <div key={role} style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:12, fontWeight:800, color:"#d97706", marginBottom:6, padding:"3px 10px", background:"#fffbeb", borderRadius:6, display:"inline-block" }}>{role}（{users.length}名）</div>
-                    {users.map(u => (
-                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3 }}>
-                        <span style={{ fontSize:20 }}>{u.avatar}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{u.name}</div>
-                          <div style={{ fontSize:10, color:"#94a3b8" }}>{[u.grade, u.club, u.district].filter(Boolean).join(" / ")}</div>
-                        </div>
-                        <div style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4, fontWeight:600 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                ));
-              } else {
-                // フィルター適用時: フラット表示
-                return (
-                  <div>
-                    <div style={{ fontSize:12, fontWeight:800, color:"#0284c7", marginBottom:8 }}>該当：{filtered.length}名</div>
-                    {filtered.length === 0 ? (
-                      <div style={{ textAlign:"center", color:"#94a3b8", fontSize:13, padding:"20px 0" }}>該当するメンバーがいません</div>
-                    ) : filtered.map(u => (
-                      <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", borderRadius:8, background:"#f8fafc", marginBottom:3 }}>
-                        <span style={{ fontSize:20 }}>{u.avatar}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:"#0f172a" }}>{u.name}</div>
-                          <div style={{ fontSize:10, color:"#94a3b8" }}>{[u.grade, u.club, u.district].filter(Boolean).join(" / ")}</div>
-                        </div>
-                        <div style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4, fontWeight:600 }}>{ROLES.find(r=>r.code===u.role)?.label}</div>
-                      </div>
-                    ))}
-                  </div>
+              let filtered = firestoreMembers;
+              if (memberCatFilter !== "all") filtered = filtered.filter(u => u.category === memberCatFilter);
+              if (memberRoleFilter !== "all") filtered = filtered.filter(u => u.role === memberRoleFilter || u.ptaRole === memberRoleFilter);
+              if (memberSearch.trim()) {
+                const q = memberSearch.trim().toLowerCase();
+                filtered = filtered.filter(u =>
+                  (u.name||"").toLowerCase().includes(q) ||
+                  (u.email||"").toLowerCase().includes(q) ||
+                  (u.children||[]).some(c => (c.name||"").toLowerCase().includes(q))
                 );
               }
+              // 不要な古いコード参照を回避
+              const USERS_DUMMY = null; // 旧USERSは使わない
+                  if (sub && fieldKey) {
+              const roleColors = {"会長":"#dc2626","副会長":"#0284c7","監事":"#059669","幹事":"#7c3aed","会計":"#d97706","事務長":"#0d9488","委員長":"#6366f1","一般会員":"#64748b","一般":"#64748b","先生":"#0284c7","地域":"#059669"};
+              return (
+                <div>
+                  <div style={{ fontSize:12, fontWeight:800, color:"#0284c7", marginBottom:8 }}>該当：{filtered.length}名</div>
+                  {filtered.length === 0 ? (
+                    <div style={{ textAlign:"center", color:"#94a3b8", fontSize:13, padding:"20px 0" }}>該当するメンバーがいません</div>
+                  ) : filtered.map(u => (
+                    <div key={u.uid} style={{ background:"#f8fafc", borderRadius:12, padding:"14px 16px", marginBottom:8, borderLeft:`4px solid ${roleColors[u.role]||"#94a3b8"}` }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontWeight:700, fontSize:14, color:"#0f172a" }}>{u.name}</div>
+                          <div style={{ display:"flex", gap:6, marginTop:3, flexWrap:"wrap" }}>
+                            <span style={{ fontSize:10, fontWeight:700, color:roleColors[u.role]||"#64748b", background:(roleColors[u.role]||"#64748b")+"18", padding:"2px 8px", borderRadius:4 }}>{u.role || u.ptaRole}</span>
+                            <span style={{ fontSize:10, color:"#94a3b8", background:"#f1f5f9", padding:"2px 8px", borderRadius:4 }}>{u.category}</span>
+                            {u.district && <span style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4 }}>🏘️ {u.district}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      {u.children && u.children.length > 0 && (
+                        <div style={{ marginBottom:6 }}>
+                          {u.children.map((c, ci) => (
+                            <div key={ci} style={{ fontSize:11, color:"#475569", padding:"2px 0", display:"flex", gap:8 }}>
+                              <span style={{ fontWeight:600 }}>👦 {c.name}</span>
+                              <span style={{ color:"#94a3b8" }}>{c.school} {c.grade} {c.class_}</span>
+                              {c.club && c.club !== "なし" && <span style={{ color:"#94a3b8" }}>⚽ {c.club}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ fontSize:10, color:"#64748b" }}>📧 {u.email || "(未設定)"}</div>
+                      {u.phone && <div style={{ fontSize:10, color:"#64748b" }}>📞 {u.phone}</div>}
+                      <div style={{ fontSize:9, color:"#cbd5e1", marginTop:4 }}>登録日: {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ja-JP") : "不明"}</div>
+                    </div>
+                  ))}
+                </div>
+              );
             })()}
           </div>
         )}
