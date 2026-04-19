@@ -2983,9 +2983,6 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                   (u.children||[]).some(c => (c.name||"").toLowerCase().includes(q))
                 );
               }
-              // 不要な古いコード参照を回避
-              const USERS_DUMMY = null; // 旧USERSは使わない
-                  if (sub && fieldKey) {
               const roleColors = {"会長":"#dc2626","副会長":"#0284c7","監事":"#059669","幹事":"#7c3aed","会計":"#d97706","事務長":"#0d9488","委員長":"#6366f1","一般会員":"#64748b","一般":"#64748b","先生":"#0284c7","地域":"#059669"};
               return (
                 <div>
