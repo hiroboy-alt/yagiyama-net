@@ -15,3 +15,27 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export default app;
+
+// イベントナビのFirestore（イベントデータ用）
+const eventnaviConfig = {
+  apiKey: "AIzaSyDdk3OWqTuBiS7s55IMRgawMHmWHNjYvjo",
+  authDomain: "eventnavi-c4b4e.firebaseapp.com",
+  projectId: "eventnavi-c4b4e",
+  storageBucket: "eventnavi-c4b4e.firebasestorage.app",
+  messagingSenderId: "640639639010",
+  appId: "1:640639639010:web:ed6cfa5cd451aa07ffedbb",
+};
+const eventnaviApp = initializeApp(eventnaviConfig, "eventnavi");
+export const eventnaviDb = getFirestore(eventnaviApp);
+
+// 見守りナビのFirestore（登録・特別日データ用）
+const mimamoriConfig = {
+  apiKey: "AIzaSyD1cLdOir9tuhRdUlv5GqR0N0FY3KiWUs4",
+  authDomain: "mimamori-navi-306da.firebaseapp.com",
+  projectId: "mimamori-navi-306da",
+  storageBucket: "mimamori-navi-306da.firebasestorage.app",
+  messagingSenderId: "934421674856",
+  appId: "1:934421674856:web:9752a528c3d2b98ecf74dd",
+};
+const mimamoriApp = initializeApp(mimamoriConfig, "mimamori");
+export const mimamoriDb = getFirestore(mimamoriApp);

@@ -10,6 +10,8 @@ import {
   doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch,
 } from "firebase/firestore";
 import GroupwareApp, { CalendarScreen } from "./Groupware.jsx";
+import EventNavi from "./EventNavi.jsx";
+import MimamoriApp from "./MimamoriNavi.jsx";
 
 const MAX_W = 540;
 
@@ -141,6 +143,28 @@ export default function App() {
           <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
             <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={calEvents} setEvents={setCalEvents} currentUser={calUser} schoolHolidays={calHolidays} addSchoolHoliday={addCalHoliday} removeSchoolHoliday={removeCalHoliday} />
           </div>
+        )}
+        {screen === "eventnavi" && calUser && (
+          <EventNavi currentUser={{
+            id: user?.uid || "u0",
+            name: profile.name,
+            nickname: (profile.name || "").split(" ")[0],
+            role: profile.role || profile.ptaRole || "一般",
+            actualRole: profile.role || profile.ptaRole || "一般",
+            email: profile.email,
+            category: profile.category,
+          }} onBackToHome={()=>setScreen("home")} />
+        )}
+        {screen === "mimamori" && calUser && (
+          <MimamoriApp currentUser={{
+            id: user?.uid || "u0",
+            name: profile.name,
+            nickname: (profile.name || "").split(" ")[0],
+            role: profile.role || profile.ptaRole || "一般",
+            actualRole: profile.role || profile.ptaRole || "一般",
+            email: profile.email,
+            category: profile.category,
+          }} onBackToHome={()=>setScreen("home")} />
         )}
       </div>
     </div>
@@ -481,8 +505,8 @@ function HomeScreen({ profile, onLogout, onOpenApp }) {
   const apps = [
     ...(!isChiiki ? [{ id:"groupware", name:"グループウェア", icon:"💬", desc:"お知らせ・チャット・アンケート", color:"#1a73e8", available:true }] : []),
     { id:"calendar", name:"カレンダー", icon:"📅", desc:"学校行事・PTA・地域の予定", color:"#0284c7", available:true },
-    { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#0d9488", available:true, url:"https://mimamori-navi.vercel.app" },
-    { id:"eventnavi", name:"イベントナビ", icon:"🎪", desc:"イベント管理・参加受付", color:"#d97706", available:true, url:"https://eventnavi.vercel.app" },
+    { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#0d9488", available:true },
+    { id:"eventnavi", name:"イベントナビ", icon:"🎪", desc:"イベント管理・参加受付", color:"#d97706", available:true },
   ];
 
   const initial = (profile?.name || "?").charAt(0);
