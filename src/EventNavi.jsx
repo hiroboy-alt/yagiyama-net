@@ -397,18 +397,6 @@ function generateFlyerPDF(event) {
 
     </div>
 
-    <!-- 同意・署名 -->
-    <div class="submit-row">
-      <div class="agree-text">
-        上記の内容で参加を申し込みます。イベントの変更・中止の際はメールアドレスへの連絡に同意します。<br>
-        個人情報はイベント運営目的のみに使用することに同意します。
-      </div>
-      <div class="sign-col">
-        <div class="sign-lbl">氏名（自署）</div>
-        <div class="sign-line"></div>
-      </div>
-    </div>
-
     <!-- フッター -->
     <div class="footer">
       <div class="footer-left">出力日：${new Date().toLocaleDateString("ja-JP")}　／　提出先：${event.organizerName || event.organizer}　${event.contactPhone ? "TEL " + event.contactPhone : ""}</div>
