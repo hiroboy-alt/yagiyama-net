@@ -5402,15 +5402,19 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     }
   };
 
-  const handleAddNotice = (title, body, user, important=false, target=null, attachments=[]) => {
+  const handleAddNotice = async (title, body, user, important=false, target=null, attachments=[]) => {
     setNotices(prev=>[{ id:`n_${Date.now()}`, title, body, author:user.nickname, ts:Date.now(), important, target, attachments }, ...prev]);
-    // メール通知を送信（テスト用：自分自身も含める。本番運用時は .filter(u => u.id !== currentUser.id) を戻すこと）
-    const ptaEmails = USERS
-      .map(u => u.email)
-      .filter(Boolean);
-    if (ptaEmails.length > 0) {
-      sendEmailNotification({ type: "notice", title, body, emails: ptaEmails, senderName: currentUser.name });
-    }
+    // メール通知を送信（Firestore usersから動的取得、投稿者本人は除外）
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      const ptaEmails = snap.docs
+        .map(d => ({ uid: d.id, ...d.data() }))
+        .filter(u => u.uid !== currentUser.id && u.email)
+        .map(u => u.email);
+      if (ptaEmails.length > 0) {
+        sendEmailNotification({ type: "notice", title, body, emails: ptaEmails, senderName: currentUser.name });
+      }
+    } catch (e) { console.error("メール送信先取得エラー:", e); }
   };
 
   return (
