@@ -1011,6 +1011,7 @@ function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, o
 
           {currentUser.role === "admin" && (
             <>
+              <button onClick={() => onEdit(event)} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️ 編集</button>
               {event.status !== "approved" && <button onClick={() => onApprove(event.id)} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#dcfce7", color: "#15803d", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>✅ 承認</button>}
               <button onClick={() => onAdminAction(event, "revision")} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#fffbeb", color: "#d97706", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>🔄 修正依頼</button>
               <button onClick={() => onAdminAction(event, "rejected")} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>🚫 非承認</button>
@@ -2246,15 +2247,16 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                   <button onClick={() => generateApplicationPDF(selectedEvent, selectedEvent.applicants.find(a => a.id === currentUser.id))} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 申込票を印刷</button>
                 </>
               )}
-              {currentUser.id === selectedEvent.organizerId && (
+              {(currentUser.id === selectedEvent.organizerId || currentUser.role === "admin") && (
                 <>
+                  <button onClick={() => { setSelectedEvent(selectedEvent); setModalType("edit"); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>✏️ 編集</button>
                   <button onClick={() => setModalType("emergency")} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📣 緊急連絡</button>
                   <button onClick={() => generateFlyerPDF(selectedEvent)} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 フライヤー印刷</button>
                 </>
               )}
               {currentUser.role === "admin" && (
                 <>
-                  <button onClick={() => { handleApproveEvent(selectedEvent.id); setModalType(null); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#dcfce7", color: "#15803d", cursor: "pointer", fontWeight: 700 }}>✅ 承認</button>
+                  {selectedEvent.status !== "approved" && <button onClick={() => { handleApproveEvent(selectedEvent.id); setModalType(null); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#dcfce7", color: "#15803d", cursor: "pointer", fontWeight: 700 }}>✅ 承認</button>}
                   <button onClick={() => { setModalType(null); setTimeout(() => setAdminActionTarget({ event: selectedEvent, type: "revision" }), 50); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fffbeb", color: "#d97706", cursor: "pointer", fontWeight: 700 }}>🔄 修正依頼</button>
                   <button onClick={() => { setModalType(null); setTimeout(() => setAdminActionTarget({ event: selectedEvent, type: "rejected" }), 50); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontWeight: 700 }}>🚫 非承認</button>
                   <button onClick={() => generateFlyerPDF(selectedEvent)} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700 }}>📄 フライヤー</button>
