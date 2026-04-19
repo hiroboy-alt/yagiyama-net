@@ -2242,11 +2242,19 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
               ))}
             </div>
             <div className="detail-buttons" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {selectedEvent.status === "approved" && currentUser.id !== selectedEvent.organizerId && (
-                <>
-                  <button onClick={() => generateApplicationPDF(selectedEvent, selectedEvent.applicants.find(a => a.id === currentUser.id))} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 申込票を印刷</button>
-                </>
-              )}
+              {selectedEvent.status === "approved" && (() => {
+                const isApplied = selectedEvent.applicants?.some(a => a.id === currentUser.id);
+                const isVolApplied = selectedEvent.volunteerApplicants?.some(a => a.id === currentUser.id);
+                const isFull = !selectedEvent.capacityUnlimited && selectedEvent.applicants?.length >= selectedEvent.capacity;
+                return (
+                  <>
+                    <button onClick={() => { setApplyType(selectedEvent.type === "volunteer" ? "volunteer" : "participant"); setModalType("apply"); }} disabled={(isApplied || isVolApplied) || isFull} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: (isApplied || isVolApplied) ? "#dcfce7" : isFull ? "#fee2e2" : "linear-gradient(135deg,#667eea,#764ba2)", color: (isApplied || isVolApplied) ? "#16a34a" : isFull ? "#dc2626" : "white", cursor: (isApplied || isVolApplied) || isFull ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13 }}>
+                      {(isApplied || isVolApplied) ? "✓ 申込済み" : isFull ? "満員" : "📝 参加申込"}
+                    </button>
+                    {isApplied && <button onClick={() => generateApplicationPDF(selectedEvent, selectedEvent.applicants.find(a => a.id === currentUser.id))} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 申込票を印刷</button>}
+                  </>
+                );
+              })()}
               {(currentUser.id === selectedEvent.organizerId || currentUser.role === "admin") && (
                 <>
                   <button onClick={() => { setSelectedEvent(selectedEvent); setModalType("edit"); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>✏️ 編集</button>
