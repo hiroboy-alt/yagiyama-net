@@ -302,6 +302,7 @@ function generateFlyerPDF(event) {
         <div class="info-card"><div class="info-label">📞 担当者連絡先</div><div class="info-value">${event.contactPhone || "—"}</div></div>
         ${event.eligibility?.length ? `<div class="info-card"><div class="info-label">🎯 参加資格</div><div class="info-value">${event.eligibility.join("・")}</div></div>` : ""}
         ${event.targetArea && event.targetArea !== "指定なし" ? `<div class="info-card"><div class="info-label">🏘️ 対象地区</div><div class="info-value">${event.targetArea === "その他" ? (event.targetAreaOther || "その他") : event.targetArea}</div></div>` : ""}
+        ${event.dressCode ? `<div class="info-card" style="grid-column:span 2"><div class="info-label">👕 服装・持ち物</div><div class="info-value">${event.dressCode.replace(/\n/g,"<br>")}</div></div>` : ""}
       </div>
     </div>
 
@@ -1198,7 +1199,7 @@ function PinSetupStep({ label, onConfirm, onBack }) {
 }
 
 function EventForm({ event, onSave, onClose }) {
-  const [form, setForm] = useState(event || { type: "event", title: "", description: "", date: "", time: "10:00", location: "", capacity: 30, capacityUnlimited: false, image: "🎉", volunteers: 0, volunteerApplicants: [], meetingPlace: "", meetingTime: "09:00", dismissalTime: "17:00", fee: "", organizerName: "", contactPerson: "", contactPhone: "", eligibility: [], targetArea: "指定なし", targetAreaOther: "" });
+  const [form, setForm] = useState(event || { type: "event", title: "", description: "", date: "", time: "10:00", location: "", capacity: 30, capacityUnlimited: false, image: "🎉", volunteers: 0, volunteerApplicants: [], meetingPlace: "", meetingTime: "09:00", dismissalTime: "17:00", fee: "", organizerName: "", contactPerson: "", contactPhone: "", eligibility: [], targetArea: "指定なし", targetAreaOther: "", dressCode: "" });
   const emojis = ["🎉", "🌸", "🎆", "📚", "🚶", "🎵", "🍳", "🌿", "🏃", "🎨", "🤝", "🌈"];
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const validate = () => {
@@ -1281,6 +1282,8 @@ function EventForm({ event, onSave, onClose }) {
           </div>
         </div>
         {form.type === "event" && <FormField label="参加費" span2><input value={form.fee} onChange={e => set("fee", e.target.value)} placeholder="例：無料、500円、大人1,000円／子ども500円" style={inputStyle} /></FormField>}
+        <SectionHeader icon="👕" title="当日の服装・持ち物" />
+        <FormField label="服装・持ち物（参加者へのご案内）" span2><textarea value={form.dressCode || ""} onChange={e => set("dressCode", e.target.value)} rows={3} placeholder="例：動きやすい服装、軍手、タオル、飲み物、帽子など" style={{ ...inputStyle, resize: "vertical" }} /></FormField>
         <SectionHeader icon="👤" title="主催者・担当者" />
         <FormField label="主催者（団体名・氏名）" required span2><input value={form.organizerName} onChange={e => set("organizerName", e.target.value)} placeholder="例：緑の会 田中花子" style={inputStyle} /></FormField>
         <FormField label="担当者名" required><input value={form.contactPerson} onChange={e => set("contactPerson", e.target.value)} placeholder="例：山田 太郎" style={inputStyle} /></FormField>
@@ -2222,6 +2225,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                 ...(selectedEvent.contactPhone ? [["📞 担当者連絡先", selectedEvent.contactPhone]] : []),
                 ...(selectedEvent.eligibility?.length ? [["🎯 参加資格", selectedEvent.eligibility.join("・")]] : []),
                 ...(selectedEvent.targetArea && selectedEvent.targetArea !== "指定なし" ? [["🏘️ 対象地区", selectedEvent.targetArea === "その他" ? (selectedEvent.targetAreaOther || "その他") : selectedEvent.targetArea]] : []),
+                ...(selectedEvent.dressCode ? [["👕 服装・持ち物", selectedEvent.dressCode]] : []),
               ].map(([label, val]) => (
                 <div key={label} style={{ background: "#f8f9ff", borderRadius: 10, padding: "10px 13px", borderLeft: "3px solid #667eea" }}>
                   <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>{label}</div>
