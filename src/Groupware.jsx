@@ -2230,6 +2230,60 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
   const [memberSearch, setMemberSearch] = useState("");
   const [memberCatFilter, setMemberCatFilter] = useState("all"); // all, 保護者, 先生, 地域
   const [memberRoleFilter, setMemberRoleFilter] = useState("all");
+  const [editingMember, setEditingMember] = useState(null); // 編集中のメンバー
+  const [memberEditForm, setMemberEditForm] = useState(null);
+  const [memberEditErr, setMemberEditErr] = useState("");
+  const [memberEditBusy, setMemberEditBusy] = useState(false);
+
+  // 管理者判定
+  const ADMIN_ROLES_GW = ["会長","副会長","監事","幹事","会計","事務長","校長","教頭","教務主任","先生"];
+  const isAdmin = ADMIN_ROLES_GW.includes(currentUser?.role) || currentUser?.category === "先生";
+
+  // メンバー編集開始
+  const startEditMember = (m) => {
+    setEditingMember(m);
+    setMemberEditForm({
+      category: m.category || "保護者",
+      name: m.name || "",
+      district: m.district || "",
+      position: m.position || "",
+      ptaRole: m.ptaRole || "一般会員",
+      children: m.children?.length ? [...m.children] : [],
+    });
+    setMemberEditErr("");
+  };
+
+  // メンバー編集保存
+  const saveMemberEdit = async () => {
+    if (!editingMember || !memberEditForm) return;
+    if (!memberEditForm.name?.trim()) { setMemberEditErr("氏名を入力してください"); return; }
+    setMemberEditBusy(true);
+    try {
+      const updateData = {
+        category: memberEditForm.category,
+        name: memberEditForm.name.trim(),
+        district: memberEditForm.category === "保護者" ? memberEditForm.district : "",
+        position: memberEditForm.category !== "保護者" ? memberEditForm.position : "",
+        ptaRole: memberEditForm.category === "保護者" ? memberEditForm.ptaRole : "",
+        children: memberEditForm.category === "保護者" ? memberEditForm.children.map(c => ({
+          name: (c.name||"").trim(),
+          school: c.school || "",
+          grade: c.grade || "",
+          class_: c.class_ || "",
+          club: c.club || "なし",
+        })) : [],
+        role: memberEditForm.category === "先生" ? "先生" : memberEditForm.category === "地域" ? "地域" : (memberEditForm.ptaRole === "一般会員" ? "一般" : memberEditForm.ptaRole),
+        updatedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, "users", editingMember.uid), updateData, { merge: true });
+      setEditingMember(null);
+      setMemberEditForm(null);
+    } catch (e) {
+      setMemberEditErr("保存に失敗しました: " + e.message);
+    }
+    setMemberEditBusy(false);
+  };
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "users"), (snap) => {
       setFirestoreMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
@@ -3000,6 +3054,9 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                             {u.district && <span style={{ fontSize:10, color:"#64748b", background:"#f1f5f9", padding:"2px 8px", borderRadius:4 }}>🏘️ {u.district}</span>}
                           </div>
                         </div>
+                        {isAdmin && (
+                          <button onClick={()=>startEditMember(u)} style={{ padding:"6px 12px", borderRadius:8, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontSize:11, fontWeight:700, cursor:"pointer" }}>✎ 編集</button>
+                        )}
                       </div>
                       {u.children && u.children.length > 0 && (
                         <div style={{ marginBottom:6 }}>
@@ -3013,13 +3070,83 @@ function AdminScreen({ onBack, onHome, events, setEvents, currentUser, channels,
                         </div>
                       )}
                       <div style={{ fontSize:10, color:"#64748b" }}>📧 {u.email || "(未設定)"}</div>
-                      {u.phone && <div style={{ fontSize:10, color:"#64748b" }}>📞 {u.phone}</div>}
                       <div style={{ fontSize:9, color:"#cbd5e1", marginTop:4 }}>登録日: {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ja-JP") : "不明"}</div>
                     </div>
                   ))}
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* メンバー編集モーダル */}
+        {editingMember && memberEditForm && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }} onClick={()=>{ setEditingMember(null); setMemberEditForm(null); }}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:16, padding:"24px 20px", maxWidth:500, width:"100%", maxHeight:"90vh", overflowY:"auto" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <div style={{ fontWeight:800, fontSize:17, color:"#0f172a" }}>✎ メンバー編集</div>
+                <button onClick={()=>{ setEditingMember(null); setMemberEditForm(null); }} style={{ background:"none", border:"none", fontSize:22, color:"#94a3b8", cursor:"pointer" }}>×</button>
+              </div>
+              {memberEditErr && <div style={{ background:"#fef2f2", color:"#dc2626", padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:12 }}>{memberEditErr}</div>}
+
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:4, display:"block" }}>区分</label>
+                <div style={{ display:"flex", gap:6 }}>
+                  {["保護者","先生","地域"].map(c => (
+                    <button key={c} onClick={()=>setMemberEditForm(p=>({...p, category:c}))} style={{ flex:1, padding:"8px", borderRadius:8, border:`2px solid ${memberEditForm.category===c?"#0284c7":"#e5e7eb"}`, background:memberEditForm.category===c?"#eff6ff":"white", color:memberEditForm.category===c?"#0284c7":"#64748b", fontSize:12, fontWeight:700, cursor:"pointer" }}>{c}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:4, display:"block" }}>氏名</label>
+                <input value={memberEditForm.name} onChange={e=>setMemberEditForm(p=>({...p, name:e.target.value}))} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"2px solid #e5e7eb", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+
+              {memberEditForm.category === "保護者" && (
+                <>
+                  <div style={{ marginBottom:14 }}>
+                    <label style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:4, display:"block" }}>地区</label>
+                    <input value={memberEditForm.district} onChange={e=>setMemberEditForm(p=>({...p, district:e.target.value}))} placeholder="例: 八木山本町1丁目" style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"2px solid #e5e7eb", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <label style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:4, display:"block" }}>PTA役職</label>
+                    <select value={memberEditForm.ptaRole} onChange={e=>setMemberEditForm(p=>({...p, ptaRole:e.target.value}))} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"2px solid #e5e7eb", fontSize:14, outline:"none", boxSizing:"border-box" }}>
+                      {["一般会員","会長","副会長","監事","幹事","会計","事務長","委員長","なし"].map(r=><option key={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ background:"#f8fafc", borderRadius:10, padding:"12px", marginBottom:14 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:"#0f172a", marginBottom:8 }}>お子さま情報</div>
+                    {(memberEditForm.children||[]).map((c, ci) => (
+                      <div key={ci} style={{ background:"white", borderRadius:8, padding:"10px", marginBottom:8, border:"1px solid #e5e7eb", position:"relative" }}>
+                        <button onClick={()=>setMemberEditForm(p=>({...p, children:p.children.filter((_,i)=>i!==ci)}))} style={{ position:"absolute", top:6, right:6, background:"none", border:"none", color:"#dc2626", fontSize:16, cursor:"pointer" }}>×</button>
+                        <div style={{ fontSize:11, fontWeight:700, color:"#0284c7", marginBottom:6 }}>{ci+1}人目</div>
+                        <input value={c.name||""} onChange={e=>{ const nc=[...memberEditForm.children]; nc[ci]={...nc[ci], name:e.target.value}; setMemberEditForm(p=>({...p, children:nc})); }} placeholder="氏名" style={{ width:"100%", padding:"8px", borderRadius:6, border:"1.5px solid #e5e7eb", fontSize:13, marginBottom:6, boxSizing:"border-box" }}/>
+                        <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                          <input value={c.school||""} onChange={e=>{ const nc=[...memberEditForm.children]; nc[ci]={...nc[ci], school:e.target.value}; setMemberEditForm(p=>({...p, children:nc})); }} placeholder="学校" style={{ flex:2, padding:"8px", borderRadius:6, border:"1.5px solid #e5e7eb", fontSize:12 }}/>
+                          <input value={c.grade||""} onChange={e=>{ const nc=[...memberEditForm.children]; nc[ci]={...nc[ci], grade:e.target.value}; setMemberEditForm(p=>({...p, children:nc})); }} placeholder="学年" style={{ flex:1, padding:"8px", borderRadius:6, border:"1.5px solid #e5e7eb", fontSize:12 }}/>
+                          <input value={c.class_||""} onChange={e=>{ const nc=[...memberEditForm.children]; nc[ci]={...nc[ci], class_:e.target.value}; setMemberEditForm(p=>({...p, children:nc})); }} placeholder="組" style={{ flex:1, padding:"8px", borderRadius:6, border:"1.5px solid #e5e7eb", fontSize:12 }}/>
+                        </div>
+                        <input value={c.club||""} onChange={e=>{ const nc=[...memberEditForm.children]; nc[ci]={...nc[ci], club:e.target.value}; setMemberEditForm(p=>({...p, children:nc})); }} placeholder="部活（なしの場合は「なし」）" style={{ width:"100%", padding:"8px", borderRadius:6, border:"1.5px solid #e5e7eb", fontSize:12, boxSizing:"border-box" }}/>
+                      </div>
+                    ))}
+                    <button onClick={()=>setMemberEditForm(p=>({...p, children:[...(p.children||[]), {name:"",school:"",grade:"",class_:"",club:"なし"}]}))} style={{ width:"100%", padding:"8px", borderRadius:6, border:"1.5px dashed #0284c7", background:"white", color:"#0284c7", fontSize:12, fontWeight:700, cursor:"pointer" }}>＋ お子さまを追加</button>
+                  </div>
+                </>
+              )}
+
+              {memberEditForm.category !== "保護者" && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:4, display:"block" }}>立場・役職</label>
+                  <input value={memberEditForm.position} onChange={e=>setMemberEditForm(p=>({...p, position:e.target.value}))} placeholder={memberEditForm.category==="先生" ? "教頭、校長、担任 など" : "民生委員、町内会長 など"} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:"2px solid #e5e7eb", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+                </div>
+              )}
+
+              <div style={{ display:"flex", gap:8, marginTop:16 }}>
+                <button onClick={()=>{ setEditingMember(null); setMemberEditForm(null); }} style={{ flex:1, padding:"12px", borderRadius:10, border:"2px solid #e5e7eb", background:"white", color:"#64748b", fontWeight:700, cursor:"pointer" }}>キャンセル</button>
+                <button onClick={saveMemberEdit} disabled={memberEditBusy} style={{ flex:2, padding:"12px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:700, cursor:"pointer", opacity:memberEditBusy?0.6:1 }}>{memberEditBusy?"保存中...":"保存する"}</button>
+              </div>
+            </div>
           </div>
         )}
 
