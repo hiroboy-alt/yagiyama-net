@@ -287,9 +287,16 @@ function generateFlyerPDF(event) {
 
     <!-- 情報グリッド -->
     <div style="overflow:hidden">
-      <div class="qr-col" style="float:right;margin:0 0 8px 14px">
-        <div class="qr-box"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent("https://eventnavi.vercel.app?event=" + event.id)}" alt="QR"/></div>
-        <div class="qr-lbl">スマホで申込 →</div>
+      <div class="qr-col" style="float:right;margin:0 0 8px 14px;display:flex;flex-direction:row;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div class="qr-box"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent("https://yagiyama-net.vercel.app?event=" + event.id)}" alt="QR"/></div>
+          <div class="qr-lbl">スマホで申込</div>
+        </div>
+        ${event.externalUrl ? `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div class="qr-box"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(event.externalUrl)}" alt="関連リンクQR"/></div>
+          <div class="qr-lbl">🔗 関連情報</div>
+        </div>` : ""}
       </div>
       <div class="info-grid">
         <div class="info-card"><div class="info-label">👤 主催者・団体名</div><div class="info-value">${event.organizerName || event.organizer}</div></div>
@@ -1199,7 +1206,7 @@ function PinSetupStep({ label, onConfirm, onBack }) {
 }
 
 function EventForm({ event, onSave, onClose }) {
-  const [form, setForm] = useState(event || { type: "event", title: "", description: "", date: "", time: "10:00", location: "", capacity: 30, capacityUnlimited: false, image: "🎉", volunteers: 0, volunteerApplicants: [], meetingPlace: "", meetingTime: "09:00", dismissalTime: "17:00", fee: "", organizerName: "", contactPerson: "", contactPhone: "", eligibility: [], targetArea: "指定なし", targetAreaOther: "", dressCode: "" });
+  const [form, setForm] = useState(event || { type: "event", title: "", description: "", date: "", time: "10:00", location: "", capacity: 30, capacityUnlimited: false, image: "🎉", volunteers: 0, volunteerApplicants: [], meetingPlace: "", meetingTime: "09:00", dismissalTime: "17:00", fee: "", organizerName: "", contactPerson: "", contactPhone: "", eligibility: [], targetArea: "指定なし", targetAreaOther: "", dressCode: "", externalUrl: "" });
   const emojis = ["🎉", "🌸", "🎆", "📚", "🚶", "🎵", "🍳", "🌿", "🏃", "🎨", "🤝", "🌈"];
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const validate = () => {
@@ -1233,6 +1240,7 @@ function EventForm({ event, onSave, onClose }) {
         <SectionHeader icon="📋" title="基本情報" />
         <FormField label="イベント名" required span2><input value={form.title} onChange={e => set("title", e.target.value)} placeholder="例：春の地域清掃フェスティバル" style={inputStyle} /></FormField>
         <FormField label="説明" span2><textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="イベントの詳細説明" style={{ ...inputStyle, resize: "vertical" }} /></FormField>
+        <FormField label="関連リンク（任意）" span2><input type="url" value={form.externalUrl || ""} onChange={e => set("externalUrl", e.target.value)} placeholder="例: https://example.com/event-detail（主催者HPやイベント詳細ページのURL）" style={inputStyle} /></FormField>
         <SectionHeader icon="📅" title="日時・場所" />
         <FormField label="開催日" required><input type="date" value={form.date} onChange={e => set("date", e.target.value)} style={inputStyle} /></FormField>
         <FormField label="開催時間" required><input type="time" value={form.time} onChange={e => set("time", e.target.value)} style={inputStyle} /></FormField>
@@ -2226,6 +2234,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                 ...(selectedEvent.eligibility?.length ? [["🎯 参加資格", selectedEvent.eligibility.join("・")]] : []),
                 ...(selectedEvent.targetArea && selectedEvent.targetArea !== "指定なし" ? [["🏘️ 対象地区", selectedEvent.targetArea === "その他" ? (selectedEvent.targetAreaOther || "その他") : selectedEvent.targetArea]] : []),
                 ...(selectedEvent.dressCode ? [["👕 服装・持ち物", selectedEvent.dressCode]] : []),
+                ...(selectedEvent.externalUrl ? [["🔗 関連リンク", selectedEvent.externalUrl]] : []),
               ].map(([label, val]) => (
                 <div key={label} style={{ background: "#f8f9ff", borderRadius: 10, padding: "10px 13px", borderLeft: "3px solid #667eea" }}>
                   <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>{label}</div>
@@ -2247,6 +2256,9 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                   </>
                 );
               })()}
+              {selectedEvent.externalUrl && (
+                <button onClick={() => window.open(selectedEvent.externalUrl, "_blank")} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "linear-gradient(135deg,#0284c7,#0369a1)", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>🔗 関連リンクを開く</button>
+              )}
               {(currentUser.id === selectedEvent.organizerId || currentUser.role === "admin") && (
                 <>
                   <button onClick={() => { setSelectedEvent(selectedEvent); setModalType("edit"); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>✏️ 編集</button>
