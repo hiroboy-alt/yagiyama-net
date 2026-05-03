@@ -584,6 +584,8 @@ export default function MimamoriApp({ currentUser: externalUser, onBackToHome })
   return (
     <div style={{ height:"100svh",display:"flex",flexDirection:"column",fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif",overflow:"hidden" }}>
       <style>{`*{box-sizing:border-box} .leaflet-container{font-family:inherit}`}</style>
+      {/* トップバナー */}
+      <div style={{ height:80, backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"cover", backgroundPosition:"center bottom", flexShrink:0 }}/>
       <header style={{ background:"linear-gradient(135deg,#0c1a2e,#1a3a5c)",flexShrink:0,boxShadow:"0 2px 16px rgba(0,0,0,0.3)" }}>
         <div style={{ display:"flex",alignItems:"center",gap:8,padding:"10px 12px 0" }}>
           <span style={{ fontSize:19 }}>👁️</span>

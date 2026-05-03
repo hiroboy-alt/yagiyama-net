@@ -251,13 +251,18 @@ function LoginScreen({ onLogin }) {
 // ============================================================
 function Header({ title, onBack, onHome, right }) {
   return (
-    <div style={{ background:"linear-gradient(135deg,#0f172a,#1e3a5f)", padding:"13px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
-      {onBack && <button onClick={onBack} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:20, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>‹ 戻る</button>}
-      {!onBack && <span style={{ fontSize:20 }}>💬</span>}
-      <span style={{ fontWeight:900, fontSize:16, color:"white", flex:1, letterSpacing:1 }}>{title}</span>
-      <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-        {right}
-        {onHome && <button onClick={onHome} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:14, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>🏠</button>}
+    <div style={{ flexShrink:0 }}>
+      {/* トップバナー（白背景部分はカット） */}
+      <div style={{ height:80, backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"cover", backgroundPosition:"center bottom" }}/>
+      {/* ナビゲーションバー */}
+      <div style={{ background:"linear-gradient(135deg,#0f172a,#1e3a5f)", padding:"13px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
+        {onBack && <button onClick={onBack} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:20, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>‹ 戻る</button>}
+        {!onBack && <span style={{ fontSize:20 }}>💬</span>}
+        <span style={{ fontWeight:900, fontSize:16, color:"white", flex:1, letterSpacing:1 }}>{title}</span>
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          {right}
+          {onHome && <button onClick={onHome} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:14, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>🏠</button>}
+        </div>
       </div>
     </div>
   );

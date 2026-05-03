@@ -2072,6 +2072,9 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
         }
       `}</style>
 
+      {/* トップバナー */}
+      <div style={{ height: 80, backgroundImage: "url('/bn.JPG')", backgroundRepeat: "no-repeat", backgroundSize: "cover", backgroundPosition: "center bottom" }}/>
+
       {/* ヘッダー */}
       <header style={{ background: ROLE_THEME[currentUser.role].headerBg, borderBottom: `2px solid ${ROLE_THEME[currentUser.role].headerBorder}`, position: "sticky", top: 0, zIndex: 100, boxShadow: `0 2px 20px ${ROLE_THEME[currentUser.role].primary}18`, transition: "all 0.4s" }}>
         <div className="header-inner" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", gap: 8, minHeight: 62, flexWrap: "wrap" }}>
