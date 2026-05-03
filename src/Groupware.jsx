@@ -313,29 +313,20 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8", overflow:"auto" }}>
-      {/* バナー背景でHeader + 挨拶カードを包む */}
-      <div style={{ backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"cover", backgroundPosition:"center bottom", flexShrink:0, paddingBottom:14 }}>
-        <Header
-          noBanner
-          title="グループウェア"
-          right={
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{currentUser.avatar} {currentUser.nickname}</span>
-              <button onClick={onLogout} style={{ padding:"5px 10px", borderRadius:8, border:"none", background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.8)", cursor:"pointer", fontSize:11, fontWeight:700 }}>🏠 ホームに戻る</button>
-            </div>
-          }
-        />
-
-        {/* あいさつ */}
-        <div style={{ margin:"20px 16px 0", background:"linear-gradient(135deg,#0f172a,#1e3a5f)", borderRadius:18, padding:"18px 20px", color:"white", position:"relative", boxShadow:"0 4px 16px rgba(0,0,0,0.2)" }}>
-          <button onClick={()=>setShowKiyaku(true)} style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.15)", border:"none", borderRadius:10, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:"white", fontSize:11, fontWeight:700 }}>📜 規約</button>
-          <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginBottom:4 }}>おはようございます</div>
-          <div style={{ fontSize:18, fontWeight:800 }}>{currentUser.avatar} {currentUser.name} さん</div>
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:4 }}>{ROLES.find(r=>r.code===currentUser.role)?.label}</div>
+      {/* バナー画像（全体表示）+ タイトルバーを白地部分に配置 */}
+      <div style={{ position:"relative", width:"100%", paddingTop:"45%", backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"cover", backgroundPosition:"center top", flexShrink:0 }}>
+        {/* タイトルバー（白地部分にオーバーレイ） */}
+        <div style={{ position:"absolute", top:0, left:0, right:0, padding:"13px 16px", display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:22 }}>💬</span>
+          <span style={{ fontWeight:900, fontSize:18, color:"#0f172a", flex:1, letterSpacing:1 }}>グループウェア</span>
+          <span style={{ fontSize:12, color:"#475569", fontWeight:700 }}>{currentUser.avatar} {currentUser.nickname}</span>
+          <button onClick={onLogout} style={{ padding:"6px 12px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#0f172a,#1e3a5f)", color:"white", cursor:"pointer", fontSize:11, fontWeight:700 }}>🏠 ホームに戻る</button>
         </div>
+        {/* 規約ボタン */}
+        <button onClick={()=>setShowKiyaku(true)} style={{ position:"absolute", top:54, right:16, background:"rgba(15,23,42,0.85)", border:"none", borderRadius:10, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:"white", fontSize:11, fontWeight:700 }}>📜 規約</button>
       </div>
 
-      <div style={{ padding:"14px 16px 20px", display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ padding:"16px 16px 20px", display:"flex", flexDirection:"column", gap:14 }}>
 
         {/* ① お知らせ */}
         <div onClick={()=>onNavigate("notices")} style={{ background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer", border:"2px solid transparent", transition:"border 0.15s" }}>
