@@ -746,6 +746,14 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
         </div>
       </div>
 
+      {/* ホーム画面追加ボタン（スマホ用・目立つ位置） */}
+      {!isStandalone && (
+        <button onClick={handleInstall} style={{ width:"100%", padding:"14px 16px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontSize:14, fontWeight:800, cursor:"pointer", marginBottom:16, fontFamily:"inherit", boxShadow:"0 4px 16px rgba(2,132,199,0.4)", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+          <span style={{ fontSize:20 }}>📲</span>
+          <span>スマホのホーム画面に追加する</span>
+        </button>
+      )}
+
       {/* アプリランチャー */}
       <div style={{ fontSize:15, fontWeight:700, color:TEXT, marginBottom:12 }}>アプリ</div>
       {apps.map(app => (
@@ -773,42 +781,44 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
         </div>
       ))}
 
-      {/* ホーム画面に追加ボタン（既にインストール済みの場合は非表示） */}
-      {!isStandalone && (
-        <button onClick={handleInstall} style={{ width:"100%", padding:"14px", borderRadius:12, border:"2px solid #0284c7", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontSize:14, fontWeight:800, cursor:"pointer", marginTop:20, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(2,132,199,0.3)" }}>📲 ホーム画面に追加</button>
-      )}
-
       {/* ログアウト */}
       <button onClick={onLogout} style={{ width:"100%", padding:"14px", borderRadius:12, border:`1.5px solid ${BORDER}`, background:"#fff", color:"#dc2626", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:12, fontFamily:"inherit" }}>ログアウト</button>
 
-      {/* iOSガイド・手動ガイドモーダル */}
-      {showIosGuide && (() => {
-        const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        return (
-          <div onClick={()=>setShowIosGuide(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
-            <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:18, padding:"24px 20px", maxWidth:380, width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,0.3)" }}>
-              <div style={{ fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:14, textAlign:"center" }}>📲 ホーム画面に追加する方法</div>
-              {isIos ? (
-                <ol style={{ paddingLeft:20, fontSize:14, color:"#475569", lineHeight:1.8 }}>
-                  <li>画面下の <b>共有ボタン</b>（□↑）をタップ</li>
-                  <li>メニューから <b>「ホーム画面に追加」</b> を選択</li>
-                  <li>右上の <b>「追加」</b> をタップ</li>
-                </ol>
-              ) : (
-                <ol style={{ paddingLeft:20, fontSize:14, color:"#475569", lineHeight:1.8 }}>
-                  <li>ブラウザ右上の <b>メニュー（︙）</b> をタップ</li>
-                  <li><b>「ホーム画面に追加」</b> を選択</li>
-                  <li><b>「追加」</b> をタップ</li>
-                </ol>
-              )}
-              <div style={{ background:"#f0fdf4", borderRadius:10, padding:"10px 14px", marginTop:14, fontSize:12, color:"#15803d" }}>
-                ✨ 追加すると、アプリのようにアイコンから直接起動できます！
-              </div>
-              <button onClick={()=>setShowIosGuide(false)} style={{ width:"100%", marginTop:14, padding:"12px", borderRadius:10, border:"none", background:"#0284c7", color:"white", fontWeight:700, fontSize:14, cursor:"pointer" }}>閉じる</button>
+      {/* スマホ向け手順ガイドモーダル（iPhone・Android両方） */}
+      {showIosGuide && (
+        <div onClick={()=>setShowIosGuide(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:18, padding:"22px 18px", maxWidth:400, width:"100%", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 8px 32px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:6, textAlign:"center" }}>📲 ホーム画面に追加する方法</div>
+            <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", marginBottom:16 }}>お使いのスマートフォンで以下の手順をお試しください</div>
+
+            {/* iPhone */}
+            <div style={{ background:"#f0f9ff", borderRadius:12, padding:"12px 14px", marginBottom:10, border:"1px solid #bae6fd" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#0284c7", marginBottom:8 }}>📱 iPhone (Safari) の場合</div>
+              <ol style={{ paddingLeft:18, fontSize:12, color:"#475569", lineHeight:1.8, margin:0 }}>
+                <li>画面下中央の <b>共有ボタン</b>（□に↑）をタップ</li>
+                <li>メニューを下にスクロール → <b>「ホーム画面に追加」</b></li>
+                <li>右上の <b>「追加」</b> をタップ</li>
+              </ol>
             </div>
+
+            {/* Android */}
+            <div style={{ background:"#f0fdf4", borderRadius:12, padding:"12px 14px", marginBottom:14, border:"1px solid #bbf7d0" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#059669", marginBottom:8 }}>🤖 Android (Chrome) の場合</div>
+              <ol style={{ paddingLeft:18, fontSize:12, color:"#475569", lineHeight:1.8, margin:0 }}>
+                <li>画面右上の <b>メニュー（︙）</b> をタップ</li>
+                <li><b>「ホーム画面に追加」</b> または <b>「アプリをインストール」</b> を選択</li>
+                <li><b>「追加」</b> または <b>「インストール」</b> をタップ</li>
+              </ol>
+            </div>
+
+            <div style={{ background:"#fef3c7", borderRadius:10, padding:"10px 14px", marginBottom:14, fontSize:11, color:"#92400e", lineHeight:1.6 }}>
+              ✨ <b>ホーム画面に追加すると</b>、アプリのようにアイコンから直接起動できて便利です！
+            </div>
+
+            <button onClick={()=>setShowIosGuide(false)} style={{ width:"100%", padding:"12px", borderRadius:10, border:"none", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontWeight:700, fontSize:14, cursor:"pointer" }}>閉じる</button>
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }
