@@ -687,6 +687,30 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
 
   const initial = (profile?.name || "?").charAt(0);
 
+  // ホーム画面追加機能（PWAインストールプロンプト）
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  useEffect(() => {
+    // 既にホーム画面から起動している場合は非表示
+    setIsStandalone(window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true);
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+  const handleInstall = async () => {
+    const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === "accepted") setInstallPrompt(null);
+    } else if (isIos) {
+      setShowIosGuide(true);
+    } else {
+      setShowIosGuide(true); // Android Chrome等でもガイド表示（既にインストール済み or プロンプト未対応の場合）
+    }
+  };
+
   return (
     <div style={{ paddingTop:24, paddingBottom:40 }}>
       {/* ヘッダー */}
@@ -749,8 +773,42 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
         </div>
       ))}
 
+      {/* ホーム画面に追加ボタン（既にインストール済みの場合は非表示） */}
+      {!isStandalone && (
+        <button onClick={handleInstall} style={{ width:"100%", padding:"14px", borderRadius:12, border:"2px solid #0284c7", background:"linear-gradient(135deg,#0284c7,#0369a1)", color:"white", fontSize:14, fontWeight:800, cursor:"pointer", marginTop:20, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(2,132,199,0.3)" }}>📲 ホーム画面に追加</button>
+      )}
+
       {/* ログアウト */}
-      <button onClick={onLogout} style={{ width:"100%", padding:"14px", borderRadius:12, border:`1.5px solid ${BORDER}`, background:"#fff", color:"#dc2626", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:20, fontFamily:"inherit" }}>ログアウト</button>
+      <button onClick={onLogout} style={{ width:"100%", padding:"14px", borderRadius:12, border:`1.5px solid ${BORDER}`, background:"#fff", color:"#dc2626", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:12, fontFamily:"inherit" }}>ログアウト</button>
+
+      {/* iOSガイド・手動ガイドモーダル */}
+      {showIosGuide && (() => {
+        const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        return (
+          <div onClick={()=>setShowIosGuide(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:18, padding:"24px 20px", maxWidth:380, width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,0.3)" }}>
+              <div style={{ fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:14, textAlign:"center" }}>📲 ホーム画面に追加する方法</div>
+              {isIos ? (
+                <ol style={{ paddingLeft:20, fontSize:14, color:"#475569", lineHeight:1.8 }}>
+                  <li>画面下の <b>共有ボタン</b>（□↑）をタップ</li>
+                  <li>メニューから <b>「ホーム画面に追加」</b> を選択</li>
+                  <li>右上の <b>「追加」</b> をタップ</li>
+                </ol>
+              ) : (
+                <ol style={{ paddingLeft:20, fontSize:14, color:"#475569", lineHeight:1.8 }}>
+                  <li>ブラウザ右上の <b>メニュー（︙）</b> をタップ</li>
+                  <li><b>「ホーム画面に追加」</b> を選択</li>
+                  <li><b>「追加」</b> をタップ</li>
+                </ol>
+              )}
+              <div style={{ background:"#f0fdf4", borderRadius:10, padding:"10px 14px", marginTop:14, fontSize:12, color:"#15803d" }}>
+                ✨ 追加すると、アプリのようにアイコンから直接起動できます！
+              </div>
+              <button onClick={()=>setShowIosGuide(false)} style={{ width:"100%", marginTop:14, padding:"12px", borderRadius:10, border:"none", background:"#0284c7", color:"white", fontWeight:700, fontSize:14, cursor:"pointer" }}>閉じる</button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
