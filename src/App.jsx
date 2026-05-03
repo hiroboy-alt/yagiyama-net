@@ -124,8 +124,9 @@ export default function App() {
   } : null;
 
   if (loading) return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:BG }}>
-      <div style={{ textAlign:"center" }}>
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:BG, position:"relative" }}>
+      <div style={{ position:"fixed", inset:0, backgroundImage:"url('/bg.JPG')", backgroundRepeat:"repeat", backgroundSize:"400px auto", opacity:0.25, pointerEvents:"none" }}/>
+      <div style={{ textAlign:"center", position:"relative", zIndex:1 }}>
         <div style={{ fontSize:36, marginBottom:8 }}>🏫</div>
         <div style={{ fontSize:15, color:TEXT2 }}>読み込み中...</div>
       </div>
@@ -133,8 +134,10 @@ export default function App() {
   );
 
   return (
-    <div style={{ minHeight:"100vh", background:BG, fontFamily:"'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
-      <div style={{ maxWidth:MAX_W, margin:"0 auto", padding:"0 16px" }}>
+    <div style={{ minHeight:"100vh", background:BG, fontFamily:"'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif", position:"relative" }}>
+      {/* 背景画像（薄く表示） */}
+      <div style={{ position:"fixed", inset:0, backgroundImage:"url('/bg.JPG')", backgroundRepeat:"repeat", backgroundSize:"400px auto", opacity:0.25, pointerEvents:"none", zIndex:0 }}/>
+      <div style={{ maxWidth:MAX_W, margin:"0 auto", padding:"0 16px", position:"relative", zIndex:1 }}>
         {screen === "login" && <LoginScreen onSwitch={()=>setScreen("register")} onLogin={()=>{}} />}
         {screen === "register" && <RegisterScreen user={user} onComplete={(p)=>{setProfile(p);setScreen("home");}} onSwitch={()=>setScreen("login")} />}
         {screen === "home" && <HomeScreen profile={profile} onLogout={async()=>{await signOut(auth);setProfile(null);setScreen("login");}} onOpenApp={(appId)=>setScreen(appId)} onOpenProfile={()=>setScreen("profile")} />}
