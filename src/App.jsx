@@ -735,7 +735,7 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
           border:`1px solid ${BORDER}`, marginBottom:8, cursor: app.available ? "pointer" : "default",
           opacity: app.available ? 1 : 0.5, transition:"transform 0.1s",
         }}>
-          <div style={{ width:48, height:48, borderRadius:14, background:`${app.color}15`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26 }}>{app.icon}</div>
+          <div style={{ width:48, height:48, borderRadius:14, background:app.color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, boxShadow:`0 2px 8px ${app.color}66` }}>{app.icon}</div>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{app.name}</div>
             <div style={{ fontSize:12, color:TEXT2 }}>{app.desc}</div>
