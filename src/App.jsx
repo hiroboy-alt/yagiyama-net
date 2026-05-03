@@ -731,19 +731,20 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
             else if (onOpenApp) onOpenApp(app.id);
           }
         }} style={{
-          display:"flex", alignItems:"center", gap:14, padding:"16px 18px", borderRadius:RADIUS, background:CARD_BG,
-          border:`1px solid ${BORDER}`, marginBottom:8, cursor: app.available ? "pointer" : "default",
+          display:"flex", alignItems:"center", gap:14, padding:"16px 18px", borderRadius:RADIUS, background:app.color,
+          border:"none", marginBottom:8, cursor: app.available ? "pointer" : "default",
           opacity: app.available ? 1 : 0.5, transition:"transform 0.1s",
+          boxShadow:`0 4px 14px ${app.color}55`,
         }}>
-          <div style={{ width:48, height:48, borderRadius:14, background:app.color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, boxShadow:`0 2px 8px ${app.color}66` }}>{app.icon}</div>
+          <div style={{ width:48, height:48, borderRadius:14, background:"rgba(255,255,255,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26 }}>{app.icon}</div>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{app.name}</div>
-            <div style={{ fontSize:12, color:TEXT2 }}>{app.desc}</div>
+            <div style={{ fontSize:15, fontWeight:800, color:"white" }}>{app.name}</div>
+            <div style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>{app.desc}</div>
           </div>
           {app.available ? (
-            <span style={{ color:app.color, fontSize:22 }}>›</span>
+            <span style={{ color:"rgba(255,255,255,0.7)", fontSize:22 }}>›</span>
           ) : (
-            <span style={{ fontSize:10, color:TEXT2, background:"#f1f5f9", padding:"4px 10px", borderRadius:8 }}>準備中</span>
+            <span style={{ fontSize:10, color:"rgba(255,255,255,0.7)", background:"rgba(255,255,255,0.15)", padding:"4px 10px", borderRadius:8 }}>準備中</span>
           )}
         </div>
       ))}
