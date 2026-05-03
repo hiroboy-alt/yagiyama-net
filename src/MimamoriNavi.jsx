@@ -584,14 +584,14 @@ export default function MimamoriApp({ currentUser: externalUser, onBackToHome })
   return (
     <div style={{ height:"100svh",display:"flex",flexDirection:"column",fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif",overflow:"hidden" }}>
       <style>{`*{box-sizing:border-box} .leaflet-container{font-family:inherit}`}</style>
-      {/* トップバナー */}
-      <div style={{ height:80, backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"cover", backgroundPosition:"center bottom", flexShrink:0 }}/>
-      <header style={{ background:"linear-gradient(135deg,#0c1a2e,#1a3a5c)",flexShrink:0,boxShadow:"0 2px 16px rgba(0,0,0,0.3)" }}>
+      {/* バナー画像 + 緑色ナビバーオーバーレイ */}
+      <div style={{ position:"relative", width:"100%", height:200, backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"100% auto", backgroundPosition:"0 -120px", flexShrink:0 }}>
+        <header style={{ position:"absolute", top:0, left:0, right:0, background:"linear-gradient(135deg,#059669,#047857)", boxShadow:"0 2px 16px rgba(0,0,0,0.3)" }}>
         <div style={{ display:"flex",alignItems:"center",gap:8,padding:"10px 12px 0" }}>
           <span style={{ fontSize:19 }}>👁️</span>
           <span style={{ fontWeight:900,fontSize:14,color:"white",letterSpacing:1,flex:1 }}>見守りナビ</span>
           <span style={{ fontSize:10,color:"rgba(255,255,255,0.6)",background:"rgba(255,255,255,0.1)",padding:"3px 8px",borderRadius:7 }}>{currentUser.role==="admin"?"👑":"👤"} {currentUser.nickname}</span>
-          <button onClick={onBackToHome} style={{ padding:"5px 10px",borderRadius:7,border:"none",background:"linear-gradient(135deg,#0284c7,#0369a1)",color:"white",cursor:"pointer",fontSize:10,fontWeight:800,letterSpacing:1 }}>🏠 ホームに戻る</button>
+          <button onClick={onBackToHome} style={{ padding:"5px 10px",borderRadius:7,border:"none",background:"rgba(255,255,255,0.2)",color:"white",cursor:"pointer",fontSize:10,fontWeight:800,letterSpacing:1 }}>🏠 ホームに戻る</button>
         </div>
         <div style={{ display:"flex",gap:1,padding:"4px 8px 0" }}>
           {tabs.map(t=>(
@@ -599,6 +599,7 @@ export default function MimamoriApp({ currentUser: externalUser, onBackToHome })
           ))}
         </div>
       </header>
+      </div>
 
       {view==="map"&&(
         <div style={{ background:"white",borderBottom:"1px solid #e5e7eb",padding:"8px 10px",overflowX:"auto",flexShrink:0,WebkitOverflowScrolling:"touch" }}>

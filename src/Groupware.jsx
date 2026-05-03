@@ -249,13 +249,29 @@ function LoginScreen({ onLogin }) {
 // ============================================================
 // 共通ヘッダー
 // ============================================================
-function Header({ title, onBack, onHome, right, noBanner=false }) {
+function Header({ title, onBack, onHome, right, noBanner=false, themeFrom="#0f172a", themeTo="#1e3a5f", overlay=false }) {
+  if (overlay) {
+    // バナー画像 + ナビバーオーバーレイ
+    return (
+      <div style={{ position:"relative", width:"100%", height:200, backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"100% auto", backgroundPosition:"0 -120px", flexShrink:0 }}>
+        <div style={{ position:"absolute", top:0, left:0, right:0, background:`linear-gradient(135deg,${themeFrom},${themeTo})`, padding:"13px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
+          {onBack && <button onClick={onBack} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:20, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>‹ 戻る</button>}
+          {!onBack && <span style={{ fontSize:20 }}>{title.includes("カレンダー")?"📅":"💬"}</span>}
+          <span style={{ fontWeight:900, fontSize:16, color:"white", flex:1, letterSpacing:1 }}>{title}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            {right}
+            {onHome && <button onClick={onHome} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:14, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>🏠</button>}
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ flexShrink:0 }}>
       {/* トップバナー（白背景部分はカット） */}
       {!noBanner && <div style={{ height:80, backgroundImage:"url('/bn.JPG')", backgroundRepeat:"no-repeat", backgroundSize:"cover", backgroundPosition:"center bottom" }}/>}
       {/* ナビゲーションバー */}
-      <div style={{ background:"linear-gradient(135deg,#0f172a,#1e3a5f)", padding:"13px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
+      <div style={{ background:`linear-gradient(135deg,${themeFrom},${themeTo})`, padding:"13px 16px", display:"flex", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
         {onBack && <button onClick={onBack} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"white", fontSize:20, fontWeight:800, cursor:"pointer", padding:"6px 12px", lineHeight:1, borderRadius:10, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}>‹ 戻る</button>}
         {!onBack && <span style={{ fontSize:20 }}>💬</span>}
         <span style={{ fontWeight:900, fontSize:16, color:"white", flex:1, letterSpacing:1 }}>{title}</span>
@@ -2080,7 +2096,7 @@ export function CalendarScreen({ onBack, onHome, events, setEvents, currentUser,
   // メインカレンダー画面
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8" }}>
-      <Header title="📅 カレンダー" onBack={onBack} onHome={onHome}/>
+      <Header title="📅 カレンダー" onBack={onBack} onHome={onHome} themeFrom="#0284c7" themeTo="#0369a1" overlay/>
       <div style={{ flex:1, overflow:"auto", padding:"16px" }}>
 
         {/* インポート通知 */}

@@ -2072,14 +2072,14 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
         }
       `}</style>
 
-      {/* トップバナー */}
-      <div style={{ height: 80, backgroundImage: "url('/bn.JPG')", backgroundRepeat: "no-repeat", backgroundSize: "cover", backgroundPosition: "center bottom" }}/>
+      {/* バナー画像 + オレンジ色ナビバーオーバーレイ */}
+      <div style={{ position: "relative", width: "100%", height: 200, backgroundImage: "url('/bn.JPG')", backgroundRepeat: "no-repeat", backgroundSize: "100% auto", backgroundPosition: "0 -120px", flexShrink: 0 }}>
 
       {/* ヘッダー */}
-      <header style={{ background: ROLE_THEME[currentUser.role].headerBg, borderBottom: `2px solid ${ROLE_THEME[currentUser.role].headerBorder}`, position: "sticky", top: 0, zIndex: 100, boxShadow: `0 2px 20px ${ROLE_THEME[currentUser.role].primary}18`, transition: "all 0.4s" }}>
+      <header style={{ position: "absolute", top: 0, left: 0, right: 0, background: "linear-gradient(135deg,#d97706,#b45309)", boxShadow: "0 2px 12px rgba(0,0,0,0.3)", zIndex: 100 }}>
         <div className="header-inner" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", gap: 8, minHeight: 62, flexWrap: "wrap" }}>
           <span style={{ fontSize: 26 }}>🎪</span>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, background: ROLE_THEME[currentUser.role].gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>イベントナビ</h1>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "white", letterSpacing: 1 }}>イベントナビ</h1>
           <div style={{ flex: 1 }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="🔍 イベントを検索..." className="header-search" style={{ ...inputStyle, width: 200, background: "#f8f9ff", border: "2px solid #e2e8f0" }} />
           <button onClick={() => setPage("signage")} className="header-signage" style={{ padding: "7px 13px", borderRadius: 9, border: "none", background: "#1e1b4b", color: "white", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>📺 サイネージ</button>
@@ -2093,6 +2093,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
           <button onClick={onBackToHome} style={{ padding: "9px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#0284c7,#0369a1)", color: "white", cursor: "pointer", fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>🏠 ホームに戻る</button>
         </div>
       </header>
+      </div>
 
       {loading && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(255,255,255,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, flexDirection: "column", gap: 16 }}>

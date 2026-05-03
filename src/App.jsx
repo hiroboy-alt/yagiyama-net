@@ -679,9 +679,9 @@ function ConfirmRow({ label, value }) {
 function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
   const isChiiki = profile?.category === "地域";
   const apps = [
-    ...(!isChiiki ? [{ id:"groupware", name:"グループウェア", icon:"💬", desc:"お知らせ・チャット・アンケート", color:"#1a73e8", available:true }] : []),
+    ...(!isChiiki ? [{ id:"groupware", name:"グループウェア", icon:"💬", desc:"お知らせ・チャット・アンケート", color:"#1e3a5f", available:true }] : []),
     { id:"calendar", name:"カレンダー", icon:"📅", desc:"学校行事・PTA・地域の予定", color:"#0284c7", available:true },
-    { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#0d9488", available:true },
+    { id:"mimamori", name:"見守りナビ", icon:"👀", desc:"見守りスポット・カレンダー", color:"#059669", available:true },
     { id:"eventnavi", name:"イベントナビ", icon:"🎪", desc:"イベント管理・参加受付", color:"#d97706", available:true },
   ];
 
