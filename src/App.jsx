@@ -795,8 +795,8 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
             <div style={{ background:"#f0f9ff", borderRadius:12, padding:"12px 14px", marginBottom:10, border:"1px solid #bae6fd" }}>
               <div style={{ fontSize:13, fontWeight:800, color:"#0284c7", marginBottom:8 }}>📱 iPhone (Safari) の場合</div>
               <ol style={{ paddingLeft:18, fontSize:12, color:"#475569", lineHeight:1.8, margin:0 }}>
-                <li>画面下中央の <b>共有ボタン</b>（□に↑）をタップ</li>
-                <li>メニューを下にスクロール → <b>「ホーム画面に追加」</b></li>
+                <li>画面右下の <b>「...」ボタン</b> をタップ</li>
+                <li>メニューを下にスクロール → <b>「ホーム画面に追加」</b> をタップ</li>
                 <li>右上の <b>「追加」</b> をタップ</li>
               </ol>
             </div>
@@ -807,7 +807,7 @@ function HomeScreen({ profile, onLogout, onOpenApp, onOpenProfile }) {
               <ol style={{ paddingLeft:18, fontSize:12, color:"#475569", lineHeight:1.8, margin:0 }}>
                 <li>画面右下の <b>「...」ボタン</b> をタップ</li>
                 <li><b>「共有」</b> をタップ</li>
-                <li>メニューを下にスクロール → <b>「ホーム画面に追加」</b></li>
+                <li>メニューを下にスクロール → <b>「ホーム画面に追加」</b> をタップ</li>
                 <li>右上の <b>「追加」</b> をタップ</li>
               </ol>
             </div>
