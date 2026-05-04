@@ -289,10 +289,12 @@ function Header({ title, onBack, onHome, right, noBanner=false, themeFrom="#0f17
 // ============================================================
 function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout }) {
   const latestNotice = notices[0];
-  // 未読カウント：localStorageの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿は除く）
-  const lastReadKey = `chatLastRead_${currentUser.id}`;
-  const lastRead = parseInt(localStorage.getItem(lastReadKey) || "0", 10);
-  const totalUnread = Object.values(messages).reduce((a, msgs) => a + msgs.filter(m => m.ts > lastRead && m.userId !== currentUser.id).length, 0);
+  // 未読カウント：チャンネルごとの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿は除く）
+  const totalUnread = Object.entries(messages).reduce((sum, [chId, msgs]) => {
+    const chReadKey = `chReadTs_${currentUser.id}_${chId}`;
+    const chLastRead = parseInt(localStorage.getItem(chReadKey) || "0", 10);
+    return sum + msgs.filter(m => m.ts > chLastRead && m.userId !== currentUser.id).length;
+  }, 0);
   const [showKiyaku, setShowKiyaku] = useState(false);
   const [kiyakuPdf, setKiyakuPdf] = useState(null); // base64 dataUrl
 
@@ -400,7 +402,7 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
         </div>
 
         {/* ③ チャット */}
-        <div onClick={()=>{ localStorage.setItem(lastReadKey, String(Date.now())); onNavigate("chat"); }} style={{ background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
+        <div onClick={()=>onNavigate("chat")} style={{ background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#059669,#047857)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>💬</div>
             <div style={{ flex:1 }}>
@@ -5224,8 +5226,12 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
           const msgs = messages[ch.id]||[];
           const last = msgs[msgs.length-1];
           const readOnly = !canWriteChannel(ch, currentUser);
+          // チャンネルごとの未読カウント（自分の投稿は除く）
+          const chReadKey = `chReadTs_${currentUser.id}_${ch.id}`;
+          const chLastRead = parseInt(localStorage.getItem(chReadKey) || "0", 10);
+          const unread = msgs.filter(m => m.ts > chLastRead && m.userId !== currentUser.id).length;
           return (
-            <div key={ch.id} onClick={()=>setActiveChannel(ch)} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+            <div key={ch.id} onClick={()=>{ localStorage.setItem(chReadKey, String(Date.now())); setActiveChannel(ch); }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
               <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
               <div style={{ flex:1, overflow:"hidden" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -5236,7 +5242,7 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
               </div>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
                 {last&&<div style={{ fontSize:10, color:"#94a3b8" }}>{formatTime(last.ts)}</div>}
-                {msgs.length>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{msgs.length}</div>}
+                {unread>0&&<div style={{ background:"#0284c7", color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{unread}</div>}
               </div>
             </div>
           );
