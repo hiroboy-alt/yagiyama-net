@@ -511,7 +511,7 @@ function MiniCalendar({ events = [] }) {
 // ============================================================
 // お知らせ一覧・詳細
 // ============================================================
-function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits, members=[] }) {
+function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, onDelete, readRecords, onMarkRead, surveys, setSurveys, recruits, setRecruits, members=[] }) {
   const [detail, setDetail] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showReadList, setShowReadList] = useState(false);
@@ -917,14 +917,19 @@ function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, readRecord
         {/* お知らせ一覧 */}
         <div style={{ padding:"8px 0" }}>
           {notices.map(n=>(
-            <div key={n.id} onClick={()=>openDetail(n)} style={{ background:"white", margin:"6px 16px", borderRadius:14, padding:"16px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", cursor:"pointer", borderLeft:n.important?"4px solid #dc2626":"4px solid transparent" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6, flexWrap:"wrap" }}>
-                {n.important && <div style={{ display:"inline-block", background:"#fef2f2", color:"#dc2626", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>重要</div>}
-                {n.target && <div style={{ display:"inline-block", background:"#eff6ff", color:"#0284c7", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>{n.target.label}</div>}
+            <div key={n.id} style={{ position:"relative", background:"white", margin:"6px 16px", borderRadius:14, padding:"16px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", borderLeft:n.important?"4px solid #dc2626":"4px solid transparent" }}>
+              <div onClick={()=>openDetail(n)} style={{ cursor:"pointer" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6, flexWrap:"wrap" }}>
+                  {n.important && <div style={{ display:"inline-block", background:"#fef2f2", color:"#dc2626", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>重要</div>}
+                  {n.target && <div style={{ display:"inline-block", background:"#eff6ff", color:"#0284c7", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>{n.target.label}</div>}
+                </div>
+                <div style={{ fontWeight:700, fontSize:15, color:"#0f172a", marginBottom:4, paddingRight:isAdmin?60:0 }}>{n.title}</div>
+                <div style={{ fontSize:12, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:6 }}>{n.body}</div>
+                <div style={{ fontSize:11, color:"#cbd5e1", display:"flex", alignItems:"center", gap:4, flexWrap:"wrap" }}>{n.author} · {formatDate(n.ts)}{n.attachments&&n.attachments.length>0&&<>{n.attachments.some(a=>a.fileType==="pdf")&&<span style={{ color:"#64748b" }}>📄</span>}{n.attachments.some(a=>a.fileType==="image")&&<span style={{ color:"#64748b" }}>📷</span>}{n.attachments.some(a=>a.fileType==="video")&&<span style={{ color:"#64748b" }}>🎥</span>}<span style={{ color:"#64748b" }}>{n.attachments.length}件</span></>}</div>
               </div>
-              <div style={{ fontWeight:700, fontSize:15, color:"#0f172a", marginBottom:4 }}>{n.title}</div>
-              <div style={{ fontSize:12, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:6 }}>{n.body}</div>
-              <div style={{ fontSize:11, color:"#cbd5e1", display:"flex", alignItems:"center", gap:4, flexWrap:"wrap" }}>{n.author} · {formatDate(n.ts)}{n.attachments&&n.attachments.length>0&&<>{n.attachments.some(a=>a.fileType==="pdf")&&<span style={{ color:"#64748b" }}>📄</span>}{n.attachments.some(a=>a.fileType==="image")&&<span style={{ color:"#64748b" }}>📷</span>}{n.attachments.some(a=>a.fileType==="video")&&<span style={{ color:"#64748b" }}>🎥</span>}<span style={{ color:"#64748b" }}>{n.attachments.length}件</span></>}</div>
+              {isAdmin && onDelete && (
+                <button onClick={(e)=>{ e.stopPropagation(); if(confirm(`「${n.title}」を削除しますか？`)) onDelete(n.id); }} style={{ position:"absolute", top:12, right:12, background:"#fef2f2", border:"none", color:"#dc2626", fontSize:11, fontWeight:700, padding:"5px 10px", borderRadius:8, cursor:"pointer" }}>🗑 削除</button>
+              )}
             </div>
           ))}
         </div>
@@ -5556,11 +5561,15 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     } catch (e) { console.error("メール送信先取得エラー:", e); }
   };
 
+  const handleDeleteNotice = (noticeId) => {
+    setNotices(prev => prev.filter(n => n.id !== noticeId));
+  };
+
   return (
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
       {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }}/>}
-      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} members={registeredMembers}/>}
+      {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} onDelete={handleDeleteNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} members={registeredMembers}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} schoolHolidays={schoolHolidays} addSchoolHoliday={addSchoolHoliday} removeSchoolHoliday={removeSchoolHoliday}/>}
       {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} members={registeredMembers}/>}
       {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms}/>}
