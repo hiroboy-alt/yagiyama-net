@@ -289,7 +289,10 @@ function Header({ title, onBack, onHome, right, noBanner=false, themeFrom="#0f17
 // ============================================================
 function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout }) {
   const latestNotice = notices[0];
-  const totalUnread = Object.values(messages).reduce((a,b)=>a+b.length,0);
+  // 未読カウント：localStorageの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿は除く）
+  const lastReadKey = `chatLastRead_${currentUser.id}`;
+  const lastRead = parseInt(localStorage.getItem(lastReadKey) || "0", 10);
+  const totalUnread = Object.values(messages).reduce((a, msgs) => a + msgs.filter(m => m.ts > lastRead && m.userId !== currentUser.id).length, 0);
   const [showKiyaku, setShowKiyaku] = useState(false);
   const [kiyakuPdf, setKiyakuPdf] = useState(null); // base64 dataUrl
 
@@ -397,7 +400,7 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
         </div>
 
         {/* ③ チャット */}
-        <div onClick={()=>onNavigate("chat")} style={{ background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
+        <div onClick={()=>{ localStorage.setItem(lastReadKey, String(Date.now())); onNavigate("chat"); }} style={{ background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#059669,#047857)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>💬</div>
             <div style={{ flex:1 }}>
