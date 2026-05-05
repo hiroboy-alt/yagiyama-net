@@ -166,14 +166,16 @@ const INITIAL_NOTICES = [
   { id:"n3", title:"ベルマーク収集のご協力を", body:"今月末までベルマークを収集しています。ご家庭にあるベルマークをお子様に持たせてください。", author:"広報委員会", ts: Date.now()-3600000*48, important:false },
 ];
 
+// デモメッセージ（固定タイムスタンプ：本番運用前の過去日）
+const _DEMO_BASE_TS = new Date("2026-01-01T00:00:00").getTime();
 const INITIAL_MESSAGES = {
   all: [
-    { id:"m1", channelId:"all", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"皆さんこんにちは。PTAグループウェアへようこそ！", ts: Date.now()-3600000*2 },
-    { id:"m2", channelId:"all", userId:"u2", nickname:"さとう", avatar:"🌸", role:"副会長", text:"よろしくお願いします！", ts: Date.now()-3600000 },
+    { id:"m1", channelId:"all", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"皆さんこんにちは。PTAグループウェアへようこそ！", ts: _DEMO_BASE_TS },
+    { id:"m2", channelId:"all", userId:"u2", nickname:"さとう", avatar:"🌸", role:"副会長", text:"よろしくお願いします！", ts: _DEMO_BASE_TS + 3600000 },
   ],
   grade1:[], grade2:[], grade3:[], club:[], district:[],
   honbu:[
-    { id:"m3", channelId:"honbu", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"本部役員の皆さん、今月の会議は15日（木）19時からです。", ts: Date.now()-7200000 },
+    { id:"m3", channelId:"honbu", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"本部役員の皆さん、今月の会議は15日（木）19時からです。", ts: _DEMO_BASE_TS + 7200000 },
   ],
   unei:[],
 };
