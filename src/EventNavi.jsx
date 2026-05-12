@@ -263,11 +263,29 @@ function generateFlyerPDF(event) {
     .footer-left { font-size:11px; color:#94a3b8; }
     .footer-logo { font-size:14px; font-weight:800; color:${th.accent}; letter-spacing:1px; }
 
+    /* 操作バー（印刷時は非表示） */
+    .toolbar { position:fixed; top:0; left:0; right:0; background:#0f172a; color:white; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px; z-index:9999; box-shadow:0 2px 12px rgba(0,0,0,0.3); }
+    .toolbar-title { font-size:14px; font-weight:700; }
+    .toolbar-buttons { display:flex; gap:8px; }
+    .toolbar-btn { background:rgba(255,255,255,0.15); border:none; color:white; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+    .toolbar-btn.print { background:#0284c7; }
+    .toolbar-btn:hover { background:rgba(255,255,255,0.25); }
+    .toolbar-btn.print:hover { background:#0369a1; }
+    .page { margin-top:52px; }
+
     @media print {
       body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      .page { padding:7mm 10mm; }
+      .page { padding:7mm 10mm; margin-top:0; }
+      .toolbar { display:none !important; }
     }
   </style></head><body>
+  <div class="toolbar">
+    <span class="toolbar-title">📄 フライヤープレビュー</span>
+    <div class="toolbar-buttons">
+      <button class="toolbar-btn print" onclick="window.print()">🖨️ 印刷</button>
+      <button class="toolbar-btn" onclick="window.close()">✕ 閉じる</button>
+    </div>
+  </div>
   <div class="page">
 
     <!-- ヘッダー -->
@@ -471,10 +489,27 @@ function generateApplicationPDF(event, applicant) {
 
     .footer { margin-top:20px; padding-top:12px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; font-size:10px; color:#94a3b8; }
 
+    /* 操作バー（印刷時は非表示） */
+    .toolbar { position:fixed; top:0; left:0; right:0; background:#0f172a; color:white; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px; z-index:9999; box-shadow:0 2px 12px rgba(0,0,0,0.3); }
+    .toolbar-title { font-size:14px; font-weight:700; }
+    .toolbar-buttons { display:flex; gap:8px; }
+    .toolbar-btn { background:rgba(255,255,255,0.15); border:none; color:white; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+    .toolbar-btn.print { background:#0284c7; }
+    .page { margin-top:52px; }
+
     @media print {
       body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .page { margin-top:0; }
+      .toolbar { display:none !important; }
     }
   </style></head><body>
+  <div class="toolbar">
+    <span class="toolbar-title">📄 申込確認票</span>
+    <div class="toolbar-buttons">
+      <button class="toolbar-btn print" onclick="window.print()">🖨️ 印刷</button>
+      <button class="toolbar-btn" onclick="window.close()">✕ 閉じる</button>
+    </div>
+  </div>
   <div class="page">
 
     <!-- ヘッダー -->
