@@ -5404,6 +5404,19 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   };
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [dmMessages, setDmMessages] = useState({});
+
+  // 初回アクセス時：既読時刻が未設定のチャンネルは現在時刻で初期化（デモメッセージを未読扱いしない）
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const initKey = `chatInitDone_${currentUser.id}`;
+    if (localStorage.getItem(initKey)) return;
+    const now = String(Date.now());
+    Object.keys(INITIAL_MESSAGES).forEach(chId => {
+      const k = `chReadTs_${currentUser.id}_${chId}`;
+      if (!localStorage.getItem(k)) localStorage.setItem(k, now);
+    });
+    localStorage.setItem(initKey, "1");
+  }, [currentUser?.id]);
   const [events, setEventsLocal] = useState([]);
   const eventsLoaded = useRef(false);
 
