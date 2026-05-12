@@ -100,7 +100,7 @@ const ROLE_THEME = {
 };
 
 // 管理者ロール（PTA本部役員 + 先生）
-const ADMIN_ROLES = ["会長","副会長","監事","幹事","会計","事務長","校長","教頭","教務主任"];
+const ADMIN_ROLES = ["会長","副会長","監事","幹事","会計","事務長","校長","教頭","教務主任","先生"];
 const isAdminRole = (role) => ADMIN_ROLES.includes(role);
 
 // ユーザーメール取得ヘルパー（yagiyama-net の users コレクションから）

@@ -134,7 +134,7 @@ const NOTICE_TARGETS = [
 
 // 権限判定
 const HONBU_ROLES = ["会長","副会長","監事","幹事","会計","事務長"];
-const SCHOOL_ROLES = ["校長","教頭","教務主任"];
+const SCHOOL_ROLES = ["校長","教頭","教務主任","先生"];
 const UNEI_ROLES = [...HONBU_ROLES, ...SCHOOL_ROLES, "委員長"];
 const canPostImportant = (role) => HONBU_ROLES.includes(role) || SCHOOL_ROLES.includes(role);
 const canPostNormal = (role) => UNEI_ROLES.includes(role);
