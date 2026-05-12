@@ -1612,14 +1612,24 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
   // URLパラメータ ?mode=signage で直接サイネージモードを表示
   const isSignageDirect = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "signage";
 
-  // URLパラメータ ?event=ID でイベント詳細を自動表示（QRコードからのアクセス用）
-  const urlEventId = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("event");
+  // URLパラメータ ?event=ID でイベント詳細を自動表示（QRコードからのアクセス用、初回のみ）
+  const autoOpenedRef = useRef(false);
   useEffect(() => {
-    if (urlEventId && events.length > 0 && currentUser && !selectedEvent) {
+    if (autoOpenedRef.current) return;
+    const urlEventId = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("event");
+    if (urlEventId && events.length > 0 && currentUser) {
       const ev = events.find(e => String(e.id) === urlEventId);
-      if (ev) { setSelectedEvent(ev); setModalType("detail"); }
+      if (ev) {
+        autoOpenedRef.current = true;
+        setSelectedEvent(ev);
+        setModalType("detail");
+        // URLからeventパラメータを削除（再オープン防止）
+        const url = new URL(window.location.href);
+        url.searchParams.delete("event");
+        window.history.replaceState({}, "", url);
+      }
     }
-  }, [urlEventId, events, currentUser]);
+  }, [events, currentUser]);
 
   // Firestoreからイベントをリアルタイム取得
   useEffect(() => {
