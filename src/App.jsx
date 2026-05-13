@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs, onSnapshot, writeBatch,
@@ -190,6 +191,11 @@ function LoginScreen({ onSwitch }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetErr, setResetErr] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
   const handleLogin = async () => {
     setErr("");
@@ -203,6 +209,23 @@ function LoginScreen({ onSwitch }) {
       else setErr("ログインに失敗しました");
     }
     setBusy(false);
+  };
+
+  const handlePasswordReset = async () => {
+    setResetErr("");
+    setResetMsg("");
+    if (!resetEmail.trim()) { setResetErr("メールアドレスを入力してください"); return; }
+    setResetBusy(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim());
+      setResetMsg("リセット用メールを送信しました。メールをご確認の上、リンクをクリックして新しいパスワードを設定してください。");
+      setResetEmail("");
+    } catch (e) {
+      if (e.code === "auth/user-not-found") setResetErr("このメールアドレスは登録されていません");
+      else if (e.code === "auth/invalid-email") setResetErr("メールアドレスの形式が正しくありません");
+      else setResetErr("送信に失敗しました：" + (e.message || ""));
+    }
+    setResetBusy(false);
   };
 
   return (
@@ -228,12 +251,45 @@ function LoginScreen({ onSwitch }) {
         </div>
 
         <button onClick={handleLogin} disabled={busy} style={{...btnSt, opacity:busy?0.6:1}}>{busy ? "ログイン中..." : "ログイン"}</button>
+
+        <div style={{ textAlign:"center", marginTop:14 }}>
+          <span onClick={()=>{ setShowReset(true); setResetEmail(email); setResetMsg(""); setResetErr(""); }} style={{ color:PRIMARY, fontSize:13, fontWeight:600, cursor:"pointer", textDecoration:"underline" }}>パスワードをお忘れの方はこちら</span>
+        </div>
       </div>
 
       <div style={{ textAlign:"center", marginTop:20, fontSize:14, color:TEXT2 }}>
         アカウントをお持ちでない方は
         <span onClick={onSwitch} style={{ color:PRIMARY, fontWeight:700, cursor:"pointer", marginLeft:4 }}>新規登録</span>
       </div>
+
+      {/* パスワードリセットモーダル */}
+      {showReset && (
+        <div onClick={()=>setShowReset(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999, padding:20 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"white", borderRadius:18, padding:"24px 20px", maxWidth:420, width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize:18, fontWeight:800, color:TEXT, marginBottom:8, textAlign:"center" }}>🔑 パスワードリセット</div>
+            <div style={{ fontSize:12, color:TEXT2, marginBottom:16, textAlign:"center", lineHeight:1.6 }}>
+              登録時のメールアドレスを入力してください。<br/>パスワードリセット用のメールをお送りします。
+            </div>
+
+            {resetErr && <div style={{ background:"#fef2f2", color:"#dc2626", padding:"10px 14px", borderRadius:10, fontSize:13, marginBottom:12 }}>{resetErr}</div>}
+            {resetMsg && <div style={{ background:"#f0fdf4", color:"#15803d", padding:"10px 14px", borderRadius:10, fontSize:12, marginBottom:12, lineHeight:1.6 }}>✅ {resetMsg}</div>}
+
+            <div style={{ marginBottom:16 }}>
+              <label style={labelSt}>メールアドレス</label>
+              <input type="email" value={resetEmail} onChange={e=>setResetEmail(e.target.value)} placeholder="example@mail.com" style={inputSt} />
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setShowReset(false)} style={{ flex:1, padding:"12px", borderRadius:10, border:`1.5px solid ${BORDER}`, background:"white", color:TEXT2, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>閉じる</button>
+              <button onClick={handlePasswordReset} disabled={resetBusy} style={{ flex:2, padding:"12px", borderRadius:10, border:"none", background:PRIMARY, color:"white", fontSize:14, fontWeight:700, cursor:resetBusy?"wait":"pointer", opacity:resetBusy?0.6:1, fontFamily:"inherit" }}>{resetBusy ? "送信中..." : "リセットメール送信"}</button>
+            </div>
+
+            <div style={{ marginTop:14, padding:"10px 12px", background:"#fef9c3", borderRadius:8, fontSize:11, color:"#92400e", lineHeight:1.6 }}>
+              💡 メールが届かない場合：迷惑メールフォルダもご確認ください。受信ドメインの設定で <b>noreply@yagiyama-net.com</b> を許可してください。
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
