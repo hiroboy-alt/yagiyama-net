@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { db } from "./firebase";
+import { db, storage } from "./firebase";
 import { collection, doc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, writeBatch } from "firebase/firestore";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // 軽量CSVパーサー（引用符内改行対応）
 function parseCSVText(text) {
@@ -5058,18 +5059,32 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   useEffect(()=>{ bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs.length]);
 
   const CHAT_ALLOWED = ["application/pdf","image/jpeg","image/png","image/gif","image/webp"];
-  const handleFileAdd = (e) => {
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const handleFileAdd = async (e) => {
     const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const fileType = file.type==="application/pdf"?"pdf":file.type.startsWith("video/")?"video":file.type.startsWith("image/")?"image":null;
-      if (!fileType) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        setAttachFiles(prev => prev.length>=3?prev:[...prev, { name:file.name, size:file.size, dataUrl:reader.result, fileType }]);
-      };
-      reader.readAsDataURL(file);
-    });
     e.target.value = "";
+    setUploadingFile(true);
+    for (const file of files) {
+      const fileType = file.type==="application/pdf"?"pdf":file.type.startsWith("video/")?"video":file.type.startsWith("image/")?"image":null;
+      if (!fileType) continue;
+      // 100MB上限（Firebase Storageのアップロード現実的上限）
+      if (file.size > 100 * 1024 * 1024) {
+        alert(`「${file.name}」は100MBを超えています。`);
+        continue;
+      }
+      if (attachFiles.length >= 3) break;
+      try {
+        const path = `chatAttachments/${channelId}/${currentUser.id}/${Date.now()}_${file.name}`;
+        const sref = storageRef(storage, path);
+        const snap = await uploadBytes(sref, file);
+        const url = await getDownloadURL(snap.ref);
+        setAttachFiles(prev => prev.length>=3?prev:[...prev, { name:file.name, size:file.size, dataUrl:url, fileType, storagePath:path }]);
+      } catch (err) {
+        console.error("ファイルアップロードエラー:", err);
+        alert(`「${file.name}」のアップロードに失敗しました：${err.message || err.code || ""}`);
+      }
+    }
+    setUploadingFile(false);
   };
 
   const handleSend = () => {
@@ -5147,15 +5162,18 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
               ))}
             </div>
           )}
+          {uploadingFile && (
+            <div style={{ fontSize:12, color:"#0284c7", marginBottom:6, paddingLeft:6 }}>📤 ファイルをアップロード中...</div>
+          )}
           <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
-            {attachFiles.length < 3 && (
+            {attachFiles.length < 3 && !uploadingFile && (
               <label style={{ width:40, height:40, borderRadius:"50%", background:"#f1f5f9", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, flexShrink:0 }}>
                 ＋
                 <input type="file" accept="application/pdf,image/*,video/*" multiple onChange={handleFileAdd} style={{ display:"none" }}/>
               </label>
             )}
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="メッセージを入力...（Enterは改行、送信は右の➤ボタン）" rows={1} style={{ flex:1, padding:"10px 16px", borderRadius:18, border:"2px solid #e5e7eb", fontSize:14, outline:"none", background:"#f8fafc", color:"#1e293b", fontFamily:"inherit", resize:"vertical", minHeight:40, maxHeight:160, lineHeight:1.5 }}/>
-            <button onClick={handleSend} disabled={!text.trim()&&attachFiles.length===0} style={{ width:40, height:40, borderRadius:"50%", border:"none", background:(text.trim()||attachFiles.length>0)?"linear-gradient(135deg,#0284c7,#0369a1)":"#e5e7eb", color:"white", fontSize:18, cursor:(text.trim()||attachFiles.length>0)?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>➤</button>
+            <button onClick={handleSend} disabled={uploadingFile||(!text.trim()&&attachFiles.length===0)} style={{ width:40, height:40, borderRadius:"50%", border:"none", background:(!uploadingFile&&(text.trim()||attachFiles.length>0))?"linear-gradient(135deg,#0284c7,#0369a1)":"#e5e7eb", color:"white", fontSize:18, cursor:(!uploadingFile&&(text.trim()||attachFiles.length>0))?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>➤</button>
           </div>
         </div>
       )}
@@ -5714,7 +5732,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       await addDoc(collection(db, "chatMessages"), msg);
     } catch (e) {
       console.error("チャット送信エラー:", e);
-      alert("メッセージの送信に失敗しました。添付ファイルが大きすぎる可能性があります（合計1MBまで）。");
+      alert("メッセージの送信に失敗しました。");
     }
   };
   const handleSendDM = async (partnerId, text, attachments=[]) => {
@@ -5724,7 +5742,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       await addDoc(collection(db, "dmMessages"), msg);
     } catch (e) {
       console.error("DM送信エラー:", e);
-      alert("メッセージの送信に失敗しました。添付ファイルが大きすぎる可能性があります（合計1MBまで）。");
+      alert("メッセージの送信に失敗しました。");
     }
   };
   // メール通知送信（グループウェア・イベントナビ・見守りナビ共通API）

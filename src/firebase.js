@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBUMYSL31nao-X60sgj1SaDT3uVdoklGo8",
@@ -16,6 +17,7 @@ export const auth = getAuth(app);
 // パスワードリセットなどFirebaseが自動送信するメールを日本語にする
 auth.languageCode = "ja";
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 export default app;
 
 // イベントナビのFirestore（イベントデータ用）

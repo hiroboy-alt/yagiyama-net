@@ -1,8 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { eventnaviDb as db, db as sharedDb } from "./firebase";
 import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, query, getDocs, where
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, query, getDocs, where, writeBatch
 } from "firebase/firestore";
+
+// 通知の表示時刻フォーマット（相対時間）
+const formatNotifTime = (ts) => {
+  if (!ts) return "";
+  const diff = Date.now() - ts;
+  if (diff < 60000) return "たった今";
+  if (diff < 3600000) return `${Math.floor(diff/60000)}分前`;
+  if (diff < 86400000) return `${Math.floor(diff/3600000)}時間前`;
+  if (diff < 604800000) return `${Math.floor(diff/86400000)}日前`;
+  const d = new Date(ts);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+};
 
 // ========== 定数・初期データ ==========
 const GRADE_TYPES = ["大人", "大学生", "高校生", "中学生", "小学生", "幼児"];
@@ -1655,10 +1667,50 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
   const [filter, setFilter] = useState("すべて");
   const [searchQ, setSearchQ] = useState("");
   const [toast, setToast] = useState(null);
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "「春の地域清掃フェスティバル」が承認されました", time: "10分前", read: false },
-    { id: 2, message: "【緊急連絡】「春の地域清掃フェスティバル」が中止になりました", time: "30分前", read: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Firestore: 通知をユーザーごとにリアルタイム同期
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const q = query(collection(db, "userNotifications"), where("userId", "==", currentUser.id));
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      setNotifications(data.slice(0, 100)); // 直近100件まで表示
+    }, (err) => console.error("通知読み込みエラー:", err));
+    return unsub;
+  }, [currentUser?.id]);
+
+  // 通知を追加（Firestoreに保存）
+  const addNotification = async (message, extra = {}) => {
+    if (!currentUser?.id) return;
+    try {
+      await addDoc(collection(db, "userNotifications"), {
+        userId: currentUser.id,
+        message,
+        ts: Date.now(),
+        read: false,
+        ...extra,
+      });
+    } catch (e) {
+      console.error("通知保存エラー:", e);
+    }
+  };
+
+  // 全ての未読通知を既読化
+  const markAllNotificationsRead = async () => {
+    const unreadItems = notifications.filter(n => !n.read);
+    if (unreadItems.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      unreadItems.forEach(n => {
+        batch.update(doc(db, "userNotifications", n.id), { read: true });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("通知既読化エラー:", e);
+    }
+  };
 
   const showToast = (message, type = "success") => setToast({ message, type });
   const unread = notifications.filter(n => !n.read).length;
@@ -1705,7 +1757,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
       }
     } catch (e) { console.error(e); }
     const totalNames = applicant.members.length > 1 ? `${applicant.members[0].name}さん 他${applicant.members.length - 1}名` : `${applicant.members[0].name}さん`;
-    setNotifications(prev => [{ id: Date.now(), message: `「${ev.title}」への申込が完了しました（${totalNames}）`, time: "たった今", read: false }, ...prev]);
+    addNotification(`「${ev.title}」への申込が完了しました（${totalNames}）`);
     showToast(`申込完了！`, "success");
     setModalType(null); setSelectedEvent(null);
   };
@@ -1732,7 +1784,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
           createdAt: serverTimestamp(),
           emergencyNotices: [],
         });
-        setNotifications(prev => [{ id: Date.now(), message: `新しいイベント「${form.title}」を投稿しました（審査待ち）`, time: "たった今", read: false }, ...prev]);
+        addNotification(`新しいイベント「${form.title}」を投稿しました（審査待ち）`);
         showToast("投稿しました！審査をお待ちください", "info");
         // 管理者にメール通知
         // 管理者（本部役員＋先生）にメール通知
@@ -1760,10 +1812,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
         });
       }
     } catch (e) { console.error(e); }
-    setNotifications(prev => [
-      { id: Date.now(), message: `${icon}【管理者より${label}】「${ev.title}」— ${comment.slice(0, 50)}${comment.length > 50 ? "…" : ""}`, time: "たった今", read: false, isAdminAction: true },
-      ...prev
-    ]);
+    addNotification(`${icon}【管理者より${label}】「${ev.title}」— ${comment.slice(0, 50)}${comment.length > 50 ? "…" : ""}`, { isAdminAction: true });
     showToast(`${label}を送信しました`, isRevision ? "info" : "error");
     // グループウェアのカレンダーから該当イベントを削除
     try {
@@ -1805,7 +1854,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
       if (ev.firestoreId) {
         updateDoc(doc(db, "events", ev.firestoreId), { applicants: newApplicants }).catch(e => console.error("申込キャンセル同期エラー:", e));
       }
-      setNotifications(prev => [{ id: Date.now(), message: `「${ev.title}」の申込をキャンセルしました`, time: "たった今", read: false }, ...prev]);
+      addNotification(`「${ev.title}」の申込をキャンセルしました`);
       showToast("申込をキャンセルしました", "info");
       setPinCheckTarget(null); return true;
     }
@@ -1869,7 +1918,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
     if (selectedEvent.firestoreId) {
       updateDoc(doc(db, "events", selectedEvent.firestoreId), { emergencyNotices: newEmergencyNotices }).catch(e => console.error("緊急連絡同期エラー:", e));
     }
-    setNotifications(prev => [{ id: Date.now(), message: `【緊急連絡】「${selectedEvent.title}」：${nt.icon}${nt.label} — ${notice.message.slice(0, 35)}…`, time: "たった今", read: false }, ...prev]);
+    addNotification(`【緊急連絡】「${selectedEvent.title}」：${nt.icon}${nt.label} — ${notice.message.slice(0, 35)}…`);
     showToast("緊急連絡を送信しました。参加者に通知されます", "success");
     // 全ユーザーにメール通知（テスト用）
     const emergencyEmails = await fetchAllUserEmails();
@@ -2217,7 +2266,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                     if (ev.firestoreId) {
                       updateDoc(doc(db, "events", ev.firestoreId), { applicants: newApplicants }).catch(e => console.error("申込キャンセル同期エラー:", e));
                     }
-                    setNotifications(prev => [{ id: Date.now(), message: `「${ev.title}」の申込をキャンセルしました`, time: "たった今", read: false }, ...prev]);
+                    addNotification(`「${ev.title}」の申込をキャンセルしました`);
                     showToast("申込をキャンセルしました", "info");
                   }
                 }}
@@ -2350,7 +2399,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
       )}
 
       {modalType === "notifications" && (
-        <Modal title="🔔 通知" onClose={() => { setModalType(null); setNotifications(prev => prev.map(n => ({ ...n, read: true }))); }}>
+        <Modal title="🔔 通知" onClose={() => { setModalType(null); markAllNotificationsRead(); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {notifications.length === 0 ? (
               <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>通知はありません</div>
@@ -2358,7 +2407,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
               <div key={n.id} style={{ padding: "12px 14px", borderRadius: 11, background: n.isAdminAction ? (n.message.includes("非承認") ? "#fef2f2" : "#fffbeb") : (n.read ? "#f8f9ff" : "#ede9fe"), borderLeft: `3px solid ${n.isAdminAction ? (n.message.includes("非承認") ? "#fecaca" : "#fde68a") : (n.read ? "#e2e8f0" : "#667eea")}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                 <div>
                   <p style={{ margin: "0 0 3px", fontSize: 13, fontWeight: n.read ? 400 : 700, color: "#1e1b4b" }}>{n.message}</p>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{n.time}</span>
+                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{n.time || formatNotifTime(n.ts)}</span>
                 </div>
                 {!n.read && <span style={{ background: "#667eea", width: 8, height: 8, borderRadius: "50%", flexShrink: 0, marginTop: 3 }} />}
               </div>
