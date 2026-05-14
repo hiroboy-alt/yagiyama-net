@@ -13,6 +13,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// パスワードリセットなどFirebaseが自動送信するメールを日本語にする
+auth.languageCode = "ja";
 export const db = getFirestore(app);
 export default app;
 
