@@ -168,6 +168,8 @@ const INITIAL_NOTICES = [
 
 // デモメッセージ（固定タイムスタンプ：本番運用前の過去日）
 const _DEMO_BASE_TS = new Date("2026-01-01T00:00:00").getTime();
+// 本番運用開始前を境界とする。これより古い ts はデモメッセージ扱いでバッジに含めない
+const DEMO_READ_CUTOFF_TS = new Date("2026-04-01T00:00:00").getTime();
 const INITIAL_MESSAGES = {
   all: [
     { id:"m1", channelId:"all", userId:"u1", nickname:"いとう", avatar:"👑", role:"会長", text:"皆さんこんにちは。PTAグループウェアへようこそ！", ts: _DEMO_BASE_TS },
@@ -291,11 +293,11 @@ function Header({ title, onBack, onHome, right, noBanner=false, themeFrom="#0f17
 // ============================================================
 function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout }) {
   const latestNotice = notices[0];
-  // 未読カウント：チャンネルごとの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿は除く）
+  // 未読カウント：チャンネルごとの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿・デモは除く）
   const totalUnread = Object.entries(messages).reduce((sum, [chId, msgs]) => {
     const chReadKey = `chReadTs_${currentUser.id}_${chId}`;
     const chLastRead = parseInt(localStorage.getItem(chReadKey) || "0", 10);
-    return sum + msgs.filter(m => m.ts > chLastRead && m.userId !== currentUser.id).length;
+    return sum + msgs.filter(m => m.ts >= DEMO_READ_CUTOFF_TS && m.ts > chLastRead && m.userId !== currentUser.id).length;
   }, 0);
   const [showKiyaku, setShowKiyaku] = useState(false);
   const [kiyakuPdf, setKiyakuPdf] = useState(null); // base64 dataUrl
@@ -5228,10 +5230,10 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
           const msgs = messages[ch.id]||[];
           const last = msgs[msgs.length-1];
           const readOnly = !canWriteChannel(ch, currentUser);
-          // チャンネルごとの未読カウント（自分の投稿は除く）
+          // チャンネルごとの未読カウント（自分の投稿・デモは除く）
           const chReadKey = `chReadTs_${currentUser.id}_${ch.id}`;
           const chLastRead = parseInt(localStorage.getItem(chReadKey) || "0", 10);
-          const unread = msgs.filter(m => m.ts > chLastRead && m.userId !== currentUser.id).length;
+          const unread = msgs.filter(m => m.ts >= DEMO_READ_CUTOFF_TS && m.ts > chLastRead && m.userId !== currentUser.id).length;
           return (
             <div key={ch.id} onClick={()=>{ localStorage.setItem(chReadKey, String(Date.now())); setActiveChannel(ch); }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
               <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
@@ -5444,15 +5446,20 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     return unsub;
   }, []);
 
-  // 初回アクセス時：既読時刻が未設定のチャンネルは現在時刻で初期化（デモメッセージを未読扱いしない）
+  // 初回アクセス時：未設定の既読時刻のみデモカットオフで初期化
+  // （新規ユーザー＝既存メッセージが全て未読として正しくバッジ表示される）
+  // （既存ユーザー＝既に開封済みのチャンネルの既読時刻は尊重される）
   useEffect(() => {
     if (!currentUser?.id) return;
-    const initKey = `chatInitDone_${currentUser.id}`;
+    const initKey = `chatInitDoneV2_${currentUser.id}`;
     if (localStorage.getItem(initKey)) return;
-    const now = String(Date.now());
+    const cutoff = String(DEMO_READ_CUTOFF_TS);
     Object.keys(INITIAL_MESSAGES).forEach(chId => {
       const k = `chReadTs_${currentUser.id}_${chId}`;
-      if (!localStorage.getItem(k)) localStorage.setItem(k, now);
+      if (!localStorage.getItem(k)) {
+        // 未設定のみカットオフで初期化（既存値は尊重）
+        localStorage.setItem(k, cutoff);
+      }
     });
     localStorage.setItem(initKey, "1");
   }, [currentUser?.id]);
