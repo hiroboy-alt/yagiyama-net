@@ -5405,6 +5405,45 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [dmMessages, setDmMessages] = useState({});
 
+  // Firestore: チャンネルメッセージをリアルタイム同期
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "chatMessages"), (snap) => {
+      const grouped = {};
+      // 既存チャンネルキーをデモメッセージから初期化（空配列）
+      Object.keys(INITIAL_MESSAGES).forEach(k => { grouped[k] = [...INITIAL_MESSAGES[k]]; });
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const cid = data.channelId;
+        if (!grouped[cid]) grouped[cid] = [];
+        grouped[cid].push({ id: d.id, ...data });
+      });
+      Object.keys(grouped).forEach(k => {
+        grouped[k].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      });
+      setMessages(grouped);
+    }, (err) => console.error("chatMessages 読み込みエラー:", err));
+    return unsub;
+  }, []);
+
+  // Firestore: ダイレクトメッセージをリアルタイム同期
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "dmMessages"), (snap) => {
+      const grouped = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const key = data.dmKey || data.channelId; // 後方互換
+        if (!key) return;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push({ id: d.id, ...data });
+      });
+      Object.keys(grouped).forEach(k => {
+        grouped[k].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      });
+      setDmMessages(grouped);
+    }, (err) => console.error("dmMessages 読み込みエラー:", err));
+    return unsub;
+  }, []);
+
   // 初回アクセス時：既読時刻が未設定のチャンネルは現在時刻で初期化（デモメッセージを未読扱いしない）
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -5543,14 +5582,24 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
     });
   };
 
-  const handleSendChannel = (channelId, text, attachments=[]) => {
-    const msg = { id:`m_${Date.now()}`, channelId, userId:currentUser.id, nickname:currentUser.nickname, avatar:currentUser.avatar, role:currentUser.role, text, ts:Date.now(), attachments };
-    setMessages(prev=>({ ...prev, [channelId]:[...(prev[channelId]||[]), msg] }));
+  const handleSendChannel = async (channelId, text, attachments=[]) => {
+    const msg = { channelId, userId:currentUser.id, nickname:currentUser.nickname, avatar:currentUser.avatar, role:currentUser.role, text, ts:Date.now(), attachments };
+    try {
+      await addDoc(collection(db, "chatMessages"), msg);
+    } catch (e) {
+      console.error("チャット送信エラー:", e);
+      alert("メッセージの送信に失敗しました。添付ファイルが大きすぎる可能性があります（合計1MBまで）。");
+    }
   };
-  const handleSendDM = (partnerId, text, attachments=[]) => {
-    const key = [currentUser.id, partnerId].sort().join("_");
-    const msg = { id:`dm_${Date.now()}`, channelId:key, userId:currentUser.id, nickname:currentUser.nickname, avatar:currentUser.avatar, role:currentUser.role, text, ts:Date.now(), attachments };
-    setDmMessages(prev=>({ ...prev, [key]:[...(prev[key]||[]), msg] }));
+  const handleSendDM = async (partnerId, text, attachments=[]) => {
+    const dmKey = [currentUser.id, partnerId].sort().join("_");
+    const msg = { dmKey, channelId:dmKey, userId:currentUser.id, nickname:currentUser.nickname, avatar:currentUser.avatar, role:currentUser.role, text, ts:Date.now(), attachments };
+    try {
+      await addDoc(collection(db, "dmMessages"), msg);
+    } catch (e) {
+      console.error("DM送信エラー:", e);
+      alert("メッセージの送信に失敗しました。添付ファイルが大きすぎる可能性があります（合計1MBまで）。");
+    }
   };
   // メール通知送信（グループウェア・イベントナビ・見守りナビ共通API）
   const sendEmailNotification = async ({ type, title, body, emails, senderName }) => {
