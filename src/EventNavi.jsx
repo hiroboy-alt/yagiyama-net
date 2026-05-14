@@ -1800,7 +1800,11 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
       const applicant = ev.applicants.find(a => a.id === pinCheckTarget.applicantId);
       if (!applicant) return false;
       if (applicant.pin && applicant.pin !== enteredPin) return false;
-      setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, applicants: e.applicants.filter(a => a.id !== pinCheckTarget.applicantId) } : e));
+      const newApplicants = ev.applicants.filter(a => a.id !== pinCheckTarget.applicantId);
+      setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, applicants: newApplicants } : e));
+      if (ev.firestoreId) {
+        updateDoc(doc(db, "events", ev.firestoreId), { applicants: newApplicants }).catch(e => console.error("申込キャンセル同期エラー:", e));
+      }
       setNotifications(prev => [{ id: Date.now(), message: `「${ev.title}」の申込をキャンセルしました`, time: "たった今", read: false }, ...prev]);
       showToast("申込をキャンセルしました", "info");
       setPinCheckTarget(null); return true;
@@ -1860,7 +1864,11 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
 
   const handleEmergencySave = async (notice) => {
     const nt = NOTICE_TYPES[notice.type];
-    setEvents(prev => prev.map(ev => ev.id === selectedEvent.id ? { ...ev, emergencyNotices: [...(ev.emergencyNotices || []), notice] } : ev));
+    const newEmergencyNotices = [...(selectedEvent.emergencyNotices || []), notice];
+    setEvents(prev => prev.map(ev => ev.id === selectedEvent.id ? { ...ev, emergencyNotices: newEmergencyNotices } : ev));
+    if (selectedEvent.firestoreId) {
+      updateDoc(doc(db, "events", selectedEvent.firestoreId), { emergencyNotices: newEmergencyNotices }).catch(e => console.error("緊急連絡同期エラー:", e));
+    }
     setNotifications(prev => [{ id: Date.now(), message: `【緊急連絡】「${selectedEvent.title}」：${nt.icon}${nt.label} — ${notice.message.slice(0, 35)}…`, time: "たった今", read: false }, ...prev]);
     showToast("緊急連絡を送信しました。参加者に通知されます", "success");
     // 全ユーザーにメール通知（テスト用）
@@ -2189,7 +2197,14 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                 onOpenApply={(ev, type) => { setSelectedEvent(ev); setApplyType(type); setModalType("apply"); }}
                 onViewDetail={ev => { setSelectedEvent(ev); setModalType("detail"); }}
                 onApprove={handleApproveEvent}
-                onRevision={id => { setEvents(prev => prev.map(e => e.id === id ? { ...e, status: "revision" } : e)); showToast("修正依頼を送信しました", "info"); }}
+                onRevision={id => {
+                  setEvents(prev => prev.map(e => e.id === id ? { ...e, status: "revision" } : e));
+                  const target = events.find(e => e.id === id);
+                  if (target?.firestoreId) {
+                    updateDoc(doc(db, "events", target.firestoreId), { status: "revision" }).catch(e => console.error("修正依頼同期エラー:", e));
+                  }
+                  showToast("修正依頼を送信しました", "info");
+                }}
                 onEdit={ev => { setSelectedEvent(ev); setModalType("edit"); }}
                 onEmergency={ev => { setSelectedEvent(ev); setModalType("emergency"); }}
                 onRoster={ev => setRosterEvent(ev)}
@@ -2197,7 +2212,11 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                 onFlyer={ev => generateFlyerPDF(ev)}
                 onCancelApply={(ev, applicantId) => {
                   if (confirm(`「${ev.title}」の申込をキャンセルしますか？`)) {
-                    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, applicants: e.applicants.filter(a => a.id !== applicantId) } : e));
+                    const newApplicants = ev.applicants.filter(a => a.id !== applicantId);
+                    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, applicants: newApplicants } : e));
+                    if (ev.firestoreId) {
+                      updateDoc(doc(db, "events", ev.firestoreId), { applicants: newApplicants }).catch(e => console.error("申込キャンセル同期エラー:", e));
+                    }
                     setNotifications(prev => [{ id: Date.now(), message: `「${ev.title}」の申込をキャンセルしました`, time: "たった今", read: false }, ...prev]);
                     showToast("申込をキャンセルしました", "info");
                   }
