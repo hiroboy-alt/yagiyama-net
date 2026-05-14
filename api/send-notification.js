@@ -44,49 +44,58 @@ export default async function handler(req, res) {
     // 独自ドメイン設定後は "noreply@yourdomain.com" に変更
     const from = `${senderName || "八木中ネット"} <noreply@yagiyama-net.com>`;
 
-    // プライバシー保護のためBCC送信
-    // to にはダミー（送信元アドレス）を指定し、実受信者は bcc に入れることで
-    // 受信者同士で他人のメールアドレスが見えないようにする
-    // Resend APIは1メールあたり合計50件（to+cc+bcc）まで受付
-    const NOREPLY_ADDRESS = "noreply@yagiyama-net.com";
-    const BATCH_SIZE = 49; // to の1件分を確保
-    const batches = [];
-    for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-      batches.push(emails.slice(i, i + BATCH_SIZE));
-    }
+    // 個別送信（1メール1受信者）
+    // - 受信者同士でメールアドレスが見えない（プライバシー保護）
+    // - BCC一括送信よりGmail等での到達率が高い
+    // - 1メールずつTOに本人のアドレスを設定するため迷惑メール判定されにくい
+    const htmlBody = buildHtml(type, title, body, senderName);
+    const sendOne = async (email) => {
+      try {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from,
+            to: [email],
+            subject,
+            html: htmlBody,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          console.error(`Resend error to ${email}:`, data);
+          return { email, success: false, error: data };
+        }
+        return { email, success: true, id: data.id };
+      } catch (e) {
+        console.error(`Resend exception for ${email}:`, e);
+        return { email, success: false, error: String(e) };
+      }
+    };
 
+    // 並列実行（Resend のレート制限: 10 req/sec を考慮し10件ずつ）
+    const CONCURRENT = 10;
     const results = [];
-    for (const batch of batches) {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from,
-          to: [NOREPLY_ADDRESS],
-          bcc: batch,
-          subject,
-          html: buildHtml(type, title, body, senderName),
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        console.error("Resend API error:", data);
-        results.push({ success: false, error: data });
-      } else {
-        results.push({ success: true, id: data.id });
+    for (let i = 0; i < emails.length; i += CONCURRENT) {
+      const chunk = emails.slice(i, i + CONCURRENT);
+      const chunkResults = await Promise.all(chunk.map(sendOne));
+      results.push(...chunkResults);
+      // レート制限回避用の小休止（次バッチがある場合のみ）
+      if (i + CONCURRENT < emails.length) {
+        await new Promise(r => setTimeout(r, 1100));
       }
     }
 
-    const allSuccess = results.every(r => r.success);
+    const successCount = results.filter(r => r.success).length;
+    const allSuccess = successCount === emails.length;
     return res.status(allSuccess ? 200 : 207).json({
-      message: allSuccess ? "All emails sent" : "Some emails failed",
-      results,
+      message: allSuccess ? "All emails sent" : `${successCount}/${emails.length} sent`,
+      successCount,
       totalEmails: emails.length,
-      totalBatches: batches.length,
+      failures: results.filter(r => !r.success),
     });
 
   } catch (error) {
