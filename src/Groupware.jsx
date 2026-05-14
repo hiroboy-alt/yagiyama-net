@@ -5152,7 +5152,7 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
                 <input type="file" accept="application/pdf,image/*,video/*" multiple onChange={handleFileAdd} style={{ display:"none" }}/>
               </label>
             )}
-            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); handleSend(); }}} placeholder="メッセージを入力..." style={{ flex:1, padding:"10px 16px", borderRadius:24, border:"2px solid #e5e7eb", fontSize:14, outline:"none", background:"#f8fafc", color:"#1e293b" }}/>
+            <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="メッセージを入力...（Enterは改行、送信は右の➤ボタン）" rows={1} style={{ flex:1, padding:"10px 16px", borderRadius:18, border:"2px solid #e5e7eb", fontSize:14, outline:"none", background:"#f8fafc", color:"#1e293b", fontFamily:"inherit", resize:"vertical", minHeight:40, maxHeight:160, lineHeight:1.5 }}/>
             <button onClick={handleSend} disabled={!text.trim()&&attachFiles.length===0} style={{ width:40, height:40, borderRadius:"50%", border:"none", background:(text.trim()||attachFiles.length>0)?"linear-gradient(135deg,#0284c7,#0369a1)":"#e5e7eb", color:"white", fontSize:18, cursor:(text.trim()||attachFiles.length>0)?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>➤</button>
           </div>
         </div>
