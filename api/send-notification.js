@@ -44,9 +44,12 @@ export default async function handler(req, res) {
     // 独自ドメイン設定後は "noreply@yourdomain.com" に変更
     const from = `${senderName || "八木中ネット"} <noreply@yagiyama-net.com>`;
 
-    // Resend APIはto配列を最大50件まで受付
-    // 50件超の場合はバッチ分割
-    const BATCH_SIZE = 50;
+    // プライバシー保護のためBCC送信
+    // to にはダミー（送信元アドレス）を指定し、実受信者は bcc に入れることで
+    // 受信者同士で他人のメールアドレスが見えないようにする
+    // Resend APIは1メールあたり合計50件（to+cc+bcc）まで受付
+    const NOREPLY_ADDRESS = "noreply@yagiyama-net.com";
+    const BATCH_SIZE = 49; // to の1件分を確保
     const batches = [];
     for (let i = 0; i < emails.length; i += BATCH_SIZE) {
       batches.push(emails.slice(i, i + BATCH_SIZE));
@@ -62,7 +65,8 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           from,
-          to: batch,
+          to: [NOREPLY_ADDRESS],
+          bcc: batch,
           subject,
           html: buildHtml(type, title, body, senderName),
         }),
