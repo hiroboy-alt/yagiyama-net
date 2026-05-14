@@ -5558,28 +5558,147 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
       console.error("Firestore sync error:", e);
     }
   };
-  const [surveys, setSurveys] = useState([]);
-  const [recruits, setRecruits] = useState([]);
+  // ===== Firestore 永続化された state =====
+  const [surveys, setSurveysLocal] = useState([]);
+  const [recruits, setRecruitsLocal] = useState([]);
   const [channels, setChannels] = useState(CHANNELS);
-  const [documents, setDocuments] = useState([
+  const INITIAL_DOCUMENTS = [
     { id:"doc1", name:"PTA総会議事録テンプレート", category:"テンプレート", createdAt:"2026-04-01", author:"いとう" },
     { id:"doc2", name:"令和8年度PTA活動計画書", category:"会議資料", createdAt:"2026-04-01", author:"いとう" },
     { id:"doc3", name:"PTA会則", category:"規約・規程", createdAt:"2026-04-01", author:"いとう" },
-  ]);
+  ];
+  const [documents, setDocumentsLocal] = useState(INITIAL_DOCUMENTS);
   const [publishForms, setPublishForms] = useState({
     _activeNav: [],
   });
   // 閲覧記録: { noticeId: [{ userId, name }] }
   const [readRecords, setReadRecords] = useState({});
 
+  // Firestore: surveys 同期
+  const surveysRef = useRef([]);
+  useEffect(() => { surveysRef.current = surveys; }, [surveys]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "surveys"), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      setSurveysLocal(data);
+    }, (err) => console.error("surveys 読み込みエラー:", err));
+    return unsub;
+  }, []);
+  const setSurveys = (updater) => {
+    const prev = surveysRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    setSurveysLocal(next);
+    const prevMap = new Map(prev.map(s => [s.id, s]));
+    const nextMap = new Map(next.map(s => [s.id, s]));
+    for (const s of next) {
+      const old = prevMap.get(s.id);
+      if (!old || JSON.stringify(old) !== JSON.stringify(s)) {
+        const { id, ...data } = s;
+        setDoc(doc(db, "surveys", id), data).catch(e => console.error("Survey sync error:", e));
+      }
+    }
+    for (const s of prev) {
+      if (!nextMap.has(s.id)) {
+        deleteDoc(doc(db, "surveys", s.id)).catch(e => console.error("Survey delete error:", e));
+      }
+    }
+  };
+
+  // Firestore: recruits 同期
+  const recruitsRef = useRef([]);
+  useEffect(() => { recruitsRef.current = recruits; }, [recruits]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "recruits"), (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      setRecruitsLocal(data);
+    }, (err) => console.error("recruits 読み込みエラー:", err));
+    return unsub;
+  }, []);
+  const setRecruits = (updater) => {
+    const prev = recruitsRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    setRecruitsLocal(next);
+    const prevMap = new Map(prev.map(r => [r.id, r]));
+    const nextMap = new Map(next.map(r => [r.id, r]));
+    for (const r of next) {
+      const old = prevMap.get(r.id);
+      if (!old || JSON.stringify(old) !== JSON.stringify(r)) {
+        const { id, ...data } = r;
+        setDoc(doc(db, "recruits", id), data).catch(e => console.error("Recruit sync error:", e));
+      }
+    }
+    for (const r of prev) {
+      if (!nextMap.has(r.id)) {
+        deleteDoc(doc(db, "recruits", r.id)).catch(e => console.error("Recruit delete error:", e));
+      }
+    }
+  };
+
+  // Firestore: documents 同期（INITIAL_DOCUMENTS はシステムテンプレート、削除不可）
+  const documentsRef = useRef([]);
+  useEffect(() => { documentsRef.current = documents; }, [documents]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "documents"), (snap) => {
+      const fsDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const merged = [...INITIAL_DOCUMENTS];
+      fsDocs.forEach(d => {
+        if (!merged.some(m => m.id === d.id)) merged.push(d);
+      });
+      setDocumentsLocal(merged);
+    }, (err) => console.error("documents 読み込みエラー:", err));
+    return unsub;
+  }, []);
+  const setDocuments = (updater) => {
+    const prev = documentsRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    setDocumentsLocal(next);
+    const initialIds = new Set(INITIAL_DOCUMENTS.map(d => d.id));
+    const prevMap = new Map(prev.map(d => [d.id, d]));
+    const nextMap = new Map(next.map(d => [d.id, d]));
+    for (const d of next) {
+      if (initialIds.has(d.id)) continue; // 初期テンプレートはFirestoreに保存しない
+      const old = prevMap.get(d.id);
+      if (!old || JSON.stringify(old) !== JSON.stringify(d)) {
+        const { id, ...data } = d;
+        setDoc(doc(db, "documents", id), data).catch(e => console.error("Document sync error:", e));
+      }
+    }
+    for (const d of prev) {
+      if (initialIds.has(d.id)) continue;
+      if (!nextMap.has(d.id)) {
+        deleteDoc(doc(db, "documents", d.id)).catch(e => console.error("Document delete error:", e));
+      }
+    }
+  };
+
+  // Firestore: readRecords 同期（既読記録）
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "readRecords"), (snap) => {
+      const records = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const nId = data.noticeId;
+        if (!nId) return;
+        if (!records[nId]) records[nId] = [];
+        records[nId].push({ userId: data.userId, name: data.name });
+      });
+      setReadRecords(records);
+    }, (err) => console.error("readRecords 読み込みエラー:", err));
+    return unsub;
+  }, []);
+
   if (!currentUser) { if (onBackToHome) onBackToHome(); return null; }
 
   const handleMarkRead = (noticeId, user) => {
-    setReadRecords(prev => {
-      const existing = prev[noticeId] || [];
-      if (existing.some(r => r.userId === user.id)) return prev;
-      return { ...prev, [noticeId]: [...existing, { userId: user.id, name: user.name }] };
-    });
+    const docId = `${noticeId}_${user.id}`;
+    setDoc(doc(db, "readRecords", docId), {
+      noticeId,
+      userId: user.id,
+      name: user.name,
+      ts: Date.now(),
+    }).catch(e => console.error("既読記録エラー:", e));
   };
 
   const handleSendChannel = async (channelId, text, attachments=[]) => {
