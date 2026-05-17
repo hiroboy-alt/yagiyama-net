@@ -37,13 +37,13 @@ function PdfThumbnail({ src, name, onOpen, dark=false }) {
   }, [src]);
 
   if (state === "error") {
-    // フォールバック: 従来のPDFアイコン
+    // フォールバック: 従来のPDFアイコン（吹き出し外に置かれるため常に白背景＋黒文字）
     return (
-      <a href={src} download={name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:dark?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
+      <a href={src} download={name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"white", border:"1px solid #e5e7eb", borderRadius:12, textDecoration:"none" }}>
         <div style={{ width:32, height:32, borderRadius:8, background:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
         <div style={{ flex:1, overflow:"hidden" }}>
-          <div style={{ fontSize:12, fontWeight:600, color:dark?"white":"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
-          <div style={{ fontSize:10, color:dark?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップで開く</div>
+          <div style={{ fontSize:12, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
+          <div style={{ fontSize:10, color:"#94a3b8" }}>タップで開く</div>
         </div>
       </a>
     );
@@ -5103,11 +5103,11 @@ function MessageBubble({ msg, isMe }) {
                   const color = isExcel?"#16a34a":isWord?"#2563eb":isPPT?"#ea580c":"#64748b";
                   const label = isExcel?"XLS":isWord?"DOC":isPPT?"PPT":(ext.toUpperCase().slice(0,4)||"FILE");
                   return (
-                    <a href={att.dataUrl} download={att.name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:isMe?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
+                    <a href={att.dataUrl} download={att.name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"white", border:"1px solid #e5e7eb", borderRadius:12, textDecoration:"none" }}>
                       <div style={{ width:32, height:32, borderRadius:8, background:color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>{label}</div>
                       <div style={{ flex:1, overflow:"hidden" }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:isMe?"white":"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{att.name}</div>
-                        <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップでダウンロード</div>
+                        <div style={{ fontSize:12, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{att.name}</div>
+                        <div style={{ fontSize:10, color:"#94a3b8" }}>タップでダウンロード</div>
                       </div>
                     </a>
                   );
