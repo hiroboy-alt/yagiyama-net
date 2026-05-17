@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -16,6 +16,8 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 // パスワードリセットなどFirebaseが自動送信するメールを日本語にする
 auth.languageCode = "ja";
+// 認証状態を localStorage に永続化（ブラウザを閉じてもログイン維持。明示的ログアウトのみで切断）
+setPersistence(auth, browserLocalPersistence).catch(e => console.error("Auth persistence設定エラー:", e));
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export default app;

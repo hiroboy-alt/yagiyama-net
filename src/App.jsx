@@ -68,6 +68,13 @@ export default function App() {
     return unsub;
   }, []);
 
+  // 地域カテゴリのユーザーがグループウェアにアクセスしようとした場合は強制的にホームに戻す
+  useEffect(() => {
+    if (screen === "groupware" && profile?.category === "地域") {
+      setScreen("home");
+    }
+  }, [screen, profile?.category]);
+
   // カレンダー用: Firestore events & schoolHolidays
   const [calEvents, setCalEventsLocal] = useState([]);
   const calEventsRef = useRef([]);
@@ -152,7 +159,7 @@ export default function App() {
             viewerRole={profile.role}
           />
         )}
-        {screen === "groupware" && <GroupwareApp firebaseUser={{...profile, uid:user?.uid}} onBackToHome={()=>setScreen("home")} />}
+        {screen === "groupware" && profile?.category !== "地域" && <GroupwareApp firebaseUser={{...profile, uid:user?.uid}} onBackToHome={()=>setScreen("home")} />}
         {screen === "calendar" && calUser && (
           <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
             <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={calEvents} setEvents={setCalEvents} currentUser={calUser} schoolHolidays={calHolidays} addSchoolHoliday={addCalHoliday} removeSchoolHoliday={removeCalHoliday} />
