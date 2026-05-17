@@ -2,6 +2,67 @@ import { useState, useEffect, useRef } from "react";
 import { db, storage } from "./firebase";
 import { collection, doc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, writeBatch } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+// PDF サムネイル表示コンポーネント（1ページ目を canvas に描画）
+function PdfThumbnail({ src, name, onOpen, dark=false }) {
+  const canvasRef = useRef(null);
+  const [state, setState] = useState("loading"); // loading | ready | error
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pdf = await pdfjsLib.getDocument({ url: src, withCredentials: false }).promise;
+        if (cancelled) return;
+        const page = await pdf.getPage(1);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const maxW = 220;
+        const scale = maxW / baseViewport.width;
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if (!cancelled) setState("ready");
+      } catch (e) {
+        console.error("PDFサムネイル生成エラー:", e);
+        if (!cancelled) setState("error");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [src]);
+
+  if (state === "error") {
+    // フォールバック: 従来のPDFアイコン
+    return (
+      <a href={src} download={name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:dark?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
+        <div style={{ width:32, height:32, borderRadius:8, background:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
+        <div style={{ flex:1, overflow:"hidden" }}>
+          <div style={{ fontSize:12, fontWeight:600, color:dark?"white":"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
+          <div style={{ fontSize:10, color:dark?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップで開く</div>
+        </div>
+      </a>
+    );
+  }
+
+  return (
+    <div onClick={onOpen} style={{ cursor:"pointer", position:"relative", display:"inline-block", maxWidth:220, borderRadius:12, overflow:"hidden", background:"#f1f5f9", boxShadow:"0 2px 8px rgba(0,0,0,0.1)" }}>
+      <canvas ref={canvasRef} style={{ width:"100%", display:"block" }} />
+      {state === "loading" && (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(248,250,252,0.95)", fontSize:12, color:"#64748b" }}>📄 読み込み中...</div>
+      )}
+      {/* ファイル名オーバーレイ（下部） */}
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", padding:"20px 10px 8px", display:"flex", alignItems:"center", gap:6 }}>
+        <div style={{ width:18, height:18, borderRadius:4, background:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
+        <div style={{ flex:1, fontSize:10, color:"white", fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</div>
+      </div>
+    </div>
+  );
+}
 
 // 軽量CSVパーサー（引用符内改行対応）
 function parseCSVText(text) {
@@ -5032,13 +5093,7 @@ function MessageBubble({ msg, isMe }) {
                   <video src={att.dataUrl} controls style={{ maxWidth:220, borderRadius:12, display:"block" }}/>
                 )}
                 {att.fileType==="pdf" && (
-                  <a href={att.dataUrl} download={att.name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:isMe?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
-                    <div style={{ width:32, height:32, borderRadius:8, background:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
-                    <div style={{ flex:1, overflow:"hidden" }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:isMe?"white":"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{att.name}</div>
-                      <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップで開く</div>
-                    </div>
-                  </a>
+                  <PdfThumbnail src={att.dataUrl} name={att.name} dark={isMe} onOpen={()=>window.open(att.dataUrl, "_blank", "noopener,noreferrer")}/>
                 )}
                 {att.fileType==="doc" && (() => {
                   const ext = (att.name||"").toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "";
