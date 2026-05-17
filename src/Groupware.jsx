@@ -5079,7 +5079,7 @@ function MessageBubble({ msg, isMe }) {
       <div style={{ maxWidth:"75%", display:"flex", flexDirection:"column", alignItems:isMe?"flex-end":"flex-start" }}>
         {!isMe && <div style={{ fontSize:11, color:"#64748b", marginBottom:3, fontWeight:600 }}>{msg.nickname}・{ROLES.find(r=>r.code===msg.role)?.label}</div>}
         {msg.text && (
-          <div style={{ background:isMe?"linear-gradient(135deg,#0284c7,#0369a1)":"white", color:isMe?"white":"#1e293b", padding:"10px 14px", fontSize:14, lineHeight:1.6, borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", boxShadow:isMe?"0 2px 12px rgba(2,132,199,0.3)":"0 2px 8px rgba(0,0,0,0.06)", wordBreak:"break-word" }}>{msg.text}</div>
+          <div style={{ background:isMe?"linear-gradient(135deg,#0284c7,#0369a1)":"white", color:isMe?"white":"#1e293b", padding:"10px 14px", fontSize:14, lineHeight:1.6, borderRadius:isMe?"18px 18px 4px 18px":"18px 18px 18px 4px", boxShadow:isMe?"0 2px 12px rgba(2,132,199,0.3)":"0 2px 8px rgba(0,0,0,0.06)", wordBreak:"break-word", whiteSpace:"pre-wrap" }}>{msg.text}</div>
         )}
         {/* 添付ファイル表示 */}
         {msg.attachments && msg.attachments.length > 0 && (
