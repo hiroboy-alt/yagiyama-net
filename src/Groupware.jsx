@@ -5032,14 +5032,31 @@ function MessageBubble({ msg, isMe }) {
                   <video src={att.dataUrl} controls style={{ maxWidth:220, borderRadius:12, display:"block" }}/>
                 )}
                 {att.fileType==="pdf" && (
-                  <a href={att.dataUrl} download={att.name} style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:isMe?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
+                  <a href={att.dataUrl} download={att.name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:isMe?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
                     <div style={{ width:32, height:32, borderRadius:8, background:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
                     <div style={{ flex:1, overflow:"hidden" }}>
                       <div style={{ fontSize:12, fontWeight:600, color:isMe?"white":"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{att.name}</div>
-                      <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップで保存</div>
+                      <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップで開く</div>
                     </div>
                   </a>
                 )}
+                {att.fileType==="doc" && (() => {
+                  const ext = (att.name||"").toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "";
+                  const isExcel = ["xlsx","xls","xlsm","csv"].includes(ext);
+                  const isWord = ["docx","doc"].includes(ext);
+                  const isPPT = ["pptx","ppt"].includes(ext);
+                  const color = isExcel?"#16a34a":isWord?"#2563eb":isPPT?"#ea580c":"#64748b";
+                  const label = isExcel?"XLS":isWord?"DOC":isPPT?"PPT":(ext.toUpperCase().slice(0,4)||"FILE");
+                  return (
+                    <a href={att.dataUrl} download={att.name} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:isMe?"rgba(255,255,255,0.15)":"#f8fafc", borderRadius:12, textDecoration:"none" }}>
+                      <div style={{ width:32, height:32, borderRadius:8, background:color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>{label}</div>
+                      <div style={{ flex:1, overflow:"hidden" }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:isMe?"white":"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{att.name}</div>
+                        <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.6)":"#94a3b8" }}>タップでダウンロード</div>
+                      </div>
+                    </a>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -5058,15 +5075,27 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   const msgs = messages[channelId] || [];
   useEffect(()=>{ bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs.length]);
 
-  const CHAT_ALLOWED = ["application/pdf","image/jpeg","image/png","image/gif","image/webp"];
+  // ファイル種別判定: image/video/pdf/doc（doc は Excel/Word/PPT/CSV/TXT/Zip 等の総称）
+  const detectFileType = (file) => {
+    const t = file.type || "";
+    const name = (file.name || "").toLowerCase();
+    if (t === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+    if (t.startsWith("video/")) return "video";
+    if (t.startsWith("image/")) return "image";
+    return "doc";
+  };
+  // ファイル拡張子の表示用ラベル
+  const fileExtLabel = (name) => {
+    const m = (name || "").match(/\.([a-z0-9]+)$/i);
+    return m ? m[1].toUpperCase().slice(0, 4) : "FILE";
+  };
   const [uploadingFile, setUploadingFile] = useState(false);
   const handleFileAdd = async (e) => {
     const files = Array.from(e.target.files);
     e.target.value = "";
     setUploadingFile(true);
     for (const file of files) {
-      const fileType = file.type==="application/pdf"?"pdf":file.type.startsWith("video/")?"video":file.type.startsWith("image/")?"image":null;
-      if (!fileType) continue;
+      const fileType = detectFileType(file);
       // 100MB上限（Firebase Storageのアップロード現実的上限）
       if (file.size > 100 * 1024 * 1024) {
         alert(`「${file.name}」は100MBを超えています。`);
@@ -5116,7 +5145,9 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
                   ? <img src={f.dataUrl} alt="" style={{ width:40, height:40, borderRadius:8, objectFit:"cover", flexShrink:0 }}/>
                   : f.fileType==="video"
                   ? <div style={{ width:40, height:40, borderRadius:8, background:"linear-gradient(135deg,#7c3aed,#5b21b6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>🎥</div>
-                  : <div style={{ width:40, height:40, borderRadius:8, background:"linear-gradient(135deg,#dc2626,#b91c1c)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
+                  : f.fileType==="pdf"
+                  ? <div style={{ width:40, height:40, borderRadius:8, background:"linear-gradient(135deg,#dc2626,#b91c1c)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"white", fontWeight:800, flexShrink:0 }}>PDF</div>
+                  : <div style={{ width:40, height:40, borderRadius:8, background:"linear-gradient(135deg,#64748b,#475569)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", fontWeight:800, flexShrink:0 }}>{fileExtLabel(f.name)}</div>
                 }
                 <div style={{ flex:1, overflow:"hidden" }}>
                   <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
@@ -5155,7 +5186,11 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
                 <div key={i} style={{ position:"relative", flexShrink:0 }}>
                   {f.fileType==="image"
                     ? <img src={f.dataUrl} alt="" style={{ width:56, height:56, borderRadius:8, objectFit:"cover" }}/>
-                    : <div style={{ width:56, height:56, borderRadius:8, background:f.fileType==="video"?"#7c3aed":"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:f.fileType==="video"?24:11, fontWeight:800 }}>{f.fileType==="video"?"🎥":"PDF"}</div>
+                    : f.fileType==="video"
+                    ? <div style={{ width:56, height:56, borderRadius:8, background:"#7c3aed", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:24, fontWeight:800 }}>🎥</div>
+                    : f.fileType==="pdf"
+                    ? <div style={{ width:56, height:56, borderRadius:8, background:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:11, fontWeight:800 }}>PDF</div>
+                    : <div style={{ width:56, height:56, borderRadius:8, background:"#64748b", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:11, fontWeight:800, padding:4, textAlign:"center", wordBreak:"break-all" }}>{fileExtLabel(f.name)}</div>
                   }
                   <button onClick={()=>setAttachFiles(prev=>prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-4, right:-4, width:20, height:20, borderRadius:"50%", background:"#dc2626", color:"white", border:"none", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>✕</button>
                 </div>
@@ -5169,7 +5204,7 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
             {attachFiles.length < 3 && !uploadingFile && (
               <label style={{ width:40, height:40, borderRadius:"50%", background:"#f1f5f9", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, flexShrink:0 }}>
                 ＋
-                <input type="file" accept="application/pdf,image/*,video/*" multiple onChange={handleFileAdd} style={{ display:"none" }}/>
+                <input type="file" accept="application/pdf,image/*,video/*,.xlsx,.xls,.docx,.doc,.pptx,.ppt,.csv,.txt,.zip,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" multiple onChange={handleFileAdd} style={{ display:"none" }}/>
               </label>
             )}
             <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="メッセージを入力...（Enterは改行、送信は右の➤ボタン）" rows={1} style={{ flex:1, padding:"10px 16px", borderRadius:18, border:"2px solid #e5e7eb", fontSize:14, outline:"none", background:"#f8fafc", color:"#1e293b", fontFamily:"inherit", resize:"vertical", minHeight:40, maxHeight:160, lineHeight:1.5 }}/>
