@@ -29,7 +29,8 @@ export default async function handler(req, res) {
       // グループウェア
       "notice": "【八木中ネット】",
       // イベントナビ
-      "event-approved-organizer": "【イベントナビ】",
+      "event-approved": "【イベントナビ】",
+      "event-approved-organizer": "【イベントナビ】", // 旧名互換
       "event-revision": "【イベントナビ】",
       "event-rejected": "【イベントナビ】",
       "event-new": "【イベントナビ】",
@@ -108,6 +109,7 @@ export default async function handler(req, res) {
 function buildHtml(type, title, body, senderName) {
   const appLabel = {
     "notice": "グループウェア",
+    "event-approved": "イベントナビ",
     "event-approved-organizer": "イベントナビ",
     "event-revision": "イベントナビ",
     "event-rejected": "イベントナビ",
@@ -118,6 +120,7 @@ function buildHtml(type, title, body, senderName) {
 
   const accentColor = {
     "notice": "#2563eb",
+    "event-approved": "#16a34a",
     "event-approved-organizer": "#16a34a",
     "event-revision": "#d97706",
     "event-rejected": "#dc2626",

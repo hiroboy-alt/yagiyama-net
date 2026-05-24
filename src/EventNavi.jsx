@@ -1881,10 +1881,51 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
         console.error("グループウェア連携エラー:", e);
       }
     }
-    // 主催者にメール通知
-    // 全ユーザーにメール通知（新規イベント公開）
+    // 全ユーザーにメール通知（新規イベント／ボランティア募集 公開）
     fetchAllUserEmails().then(emails => {
-      if (emails.length > 0) sendEmailNotification({ type: "event-approved-organizer", title: `新しいイベント「${ev?.title || ""}」が公開されました`, body: `「${ev?.title || ""}」が承認され、イベントナビで公開されています。\n\n詳細はイベントナビからご確認ください。`, emails, senderName: "イベントナビ" });
+      if (emails.length === 0) return;
+      const isVol = ev?.type === "volunteer";
+      const kindLabel = isVol ? "🙋 ボランティア募集" : "📅 イベント";
+      const kindWord = isVol ? "ボランティア募集" : "イベント";
+      // 日付フォーマット（YYYY-MM-DD → YYYY年M月D日(曜)）
+      const fmtDate = (d) => {
+        if (!d) return "未定";
+        const dt = new Date(d);
+        if (isNaN(dt)) return d;
+        const w = ["日","月","火","水","木","金","土"][dt.getDay()];
+        return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日(${w})`;
+      };
+      const lines = [
+        `新しい${kindWord}が公開されました。`,
+        ``,
+        `【種別】${kindLabel}`,
+        `【名称】${ev?.title || "（無題）"}`,
+        `【開催日】${fmtDate(ev?.date)}`,
+      ];
+      if (isVol) {
+        if (ev?.meetingTime || ev?.dismissalTime) {
+          lines.push(`【時間】${ev?.meetingTime || "未定"} 集合 〜 ${ev?.dismissalTime || "未定"} 解散`);
+        }
+        if (ev?.meetingPlace) lines.push(`【集合場所】${ev.meetingPlace}`);
+      } else {
+        if (ev?.time) lines.push(`【開始時刻】${ev.time}`);
+        if (ev?.location) lines.push(`【開催場所】${ev.location}`);
+      }
+      if (ev?.organizer) lines.push(`【主催】${ev.organizer}`);
+      if (ev?.description) {
+        lines.push(``);
+        lines.push(`【内容】`);
+        lines.push(ev.description);
+      }
+      lines.push(``);
+      lines.push(`詳細・お申込みはイベントナビからご確認ください。`);
+      sendEmailNotification({
+        type: "event-approved",
+        title: `${kindLabel}「${ev?.title || ""}」が公開されました`,
+        body: lines.join("\n"),
+        emails,
+        senderName: "イベントナビ",
+      });
     });
   };
 
