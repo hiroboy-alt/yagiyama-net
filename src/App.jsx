@@ -131,6 +131,11 @@ export default function App() {
     avatar: "👤",
   } : null;
 
+  // ?mode=signage はログイン不要でイベントナビのサイネージを全画面表示（掲示用端末向け）
+  // EventNavi 側が同じパラメータを見てサイネージ画面を返すため、ここでは認証を通さずそのまま描画する
+  const isSignageMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "signage";
+  if (isSignageMode) return <EventNavi currentUser={null} onBackToHome={()=>{}} />;
+
   if (loading) return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:BG, position:"relative" }}>
       <div style={{ position:"fixed", inset:0, backgroundImage:"url('/bg.JPG')", backgroundRepeat:"repeat", backgroundSize:"400px auto", opacity:0.4, pointerEvents:"none" }}/>
@@ -159,7 +164,7 @@ export default function App() {
             viewerRole={profile.role}
           />
         )}
-        {screen === "groupware" && profile?.category !== "地域" && <GroupwareApp firebaseUser={{...profile, uid:user?.uid}} onBackToHome={()=>setScreen("home")} />}
+        {screen === "groupware" && profile?.category !== "地域" && <GroupwareApp firebaseUser={{...profile, uid:user?.uid}} onBackToHome={()=>setScreen("home")} onOpenApp={(appId)=>setScreen(appId)} />}
         {screen === "calendar" && calUser && (
           <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
             <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={calEvents} setEvents={setCalEvents} currentUser={calUser} schoolHolidays={calHolidays} addSchoolHoliday={addCalHoliday} removeSchoolHoliday={removeCalHoliday} />

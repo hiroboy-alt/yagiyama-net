@@ -353,7 +353,7 @@ function Header({ title, onBack, onHome, right, noBanner=false, themeFrom="#0f17
 // ============================================================
 // ホーム画面
 // ============================================================
-function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout }) {
+function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout, onOpenApp }) {
   const latestNotice = notices[0];
   // 未読カウント：チャンネルごとの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿・デモは除く）
   const totalUnread = Object.entries(messages).reduce((sum, [chId, msgs]) => {
@@ -496,26 +496,26 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
           </div>
         )}
 
-        {/* ⑤ 外部アプリ（イベントナビ・見守りナビ） */}
+        {/* ⑤ 連携アプリ（イベントナビ・見守りナビ）— 八木中ネット内の組込版を開く */}
         <div style={{ display:"flex", gap:12 }}>
-          <div onClick={()=>window.open("https://eventnavi.vercel.app","_blank")} style={{ flex:1, background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
+          <div onClick={()=>onOpenApp && onOpenApp("eventnavi")} style={{ flex:1, background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#7c3aed,#5b21b6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>🎪</div>
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:"#0f172a" }}>イベントナビ</div>
                 <div style={{ fontSize:10, color:"#94a3b8" }}>地域イベント</div>
               </div>
-              <span style={{ color:"#cbd5e1", fontSize:16 }}>↗</span>
+              <span style={{ color:"#cbd5e1", fontSize:16 }}>›</span>
             </div>
           </div>
-          <div onClick={()=>window.open("https://mimamori-navi.vercel.app","_blank")} style={{ flex:1, background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
+          <div onClick={()=>onOpenApp && onOpenApp("mimamori")} style={{ flex:1, background:"white", borderRadius:18, padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", cursor:"pointer" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#059669,#047857)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>👁️</div>
               <div style={{ flex:1 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:"#0f172a" }}>見守りナビ</div>
                 <div style={{ fontSize:10, color:"#94a3b8" }}>登下校見守り</div>
               </div>
-              <span style={{ color:"#cbd5e1", fontSize:16 }}>↗</span>
+              <span style={{ color:"#cbd5e1", fontSize:16 }}>›</span>
             </div>
           </div>
         </div>
@@ -5461,7 +5461,7 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
 // ============================================================
 // メインアプリ
 // ============================================================
-export default function GroupwareApp({ firebaseUser, onBackToHome }) {
+export default function GroupwareApp({ firebaseUser, onBackToHome, onOpenApp }) {
   const [currentUser, setCurrentUser] = useState(() => {
     if (!firebaseUser) return null;
     return {
@@ -5875,7 +5875,7 @@ export default function GroupwareApp({ firebaseUser, onBackToHome }) {
   return (
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
-      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }}/>}
+      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} onOpenApp={onOpenApp}/>}
       {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} onDelete={handleDeleteNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} members={registeredMembers}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} schoolHolidays={schoolHolidays} addSchoolHoliday={addSchoolHoliday} removeSchoolHoliday={removeSchoolHoliday}/>}
       {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} members={registeredMembers}/>}
