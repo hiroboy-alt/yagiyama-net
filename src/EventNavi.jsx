@@ -134,12 +134,24 @@ const fetchUserEmail = async (uid) => {
     return snap.exists() ? snap.data().email : null;
   } catch (e) { console.error("ユーザーメール取得エラー:", e); return null; }
 };
+// 応募者（参加申込＋ボランティア応募）の登録メールアドレスを重複なしで収集
+const collectApplicantEmails = (event) => {
+  const groups = [...(event?.applicants || []), ...(event?.volunteerApplicants || [])];
+  const emails = groups.flatMap(a => (a.members || []).map(m => m.email)).filter(Boolean);
+  return [...new Set(emails)];
+};
+// 応募者のユーザーID（アプリ内通知の宛先用）
+const collectApplicantUserIds = (event) => {
+  const groups = [...(event?.applicants || []), ...(event?.volunteerApplicants || [])];
+  return [...new Set(groups.map(a => a.id).filter(Boolean))];
+};
 
 const STATUS_LABELS = { approved: "承認済み", pending: "審査中", revision: "修正依頼", rejected: "非承認" };
 const STATUS_COLORS = { approved: "#22c55e", pending: "#f59e0b", revision: "#d97706", rejected: "#dc2626" };
 
 const NOTICE_TYPES = {
   cancel:     { label: "中止",     color: "#dc2626", bg: "#fef2f2", border: "#fecaca", icon: "🚫" },
+  postpone:   { label: "延期",     color: "#ea580c", bg: "#fff7ed", border: "#fed7aa", icon: "⏭️" },
   timechange: { label: "時間変更", color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "🕐" },
   placechange:{ label: "場所変更", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe", icon: "📍" },
   other:      { label: "お知らせ", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd", icon: "📢" },
@@ -591,10 +603,16 @@ function generateApplicationPDF(event, applicant) {
 const generatePDF = generateFlyerPDF;
 
 function buildRosterRows(event) {
-  const header = ["No.", "氏名", "区分", "学校名", "学年", "クラス", "メールアドレス", "緊急連絡先", "応募日"];
-  const rows = event.applicants.flatMap((a, gi) =>
-    a.members.map((m, mi) => [
+  const header = ["No.", "応募種別", "氏名", "区分", "学校名", "学年", "クラス", "メールアドレス", "緊急連絡先", "応募日"];
+  // 参加申込とボランティア応募の両方を名簿に含める
+  const groups = [
+    ...(event.applicants || []).map(a => ({ ...a, kind: "参加" })),
+    ...(event.volunteerApplicants || []).map(a => ({ ...a, kind: "ボランティア" })),
+  ];
+  const rows = groups.flatMap((a, gi) =>
+    (a.members || []).map((m, mi) => [
       mi === 0 ? String(gi + 1) : "",
+      mi === 0 ? a.kind : "",
       m.name, m.grade,
       m.school || "", m.schoolYear || "", m.schoolClass || "",
       m.email || "", m.phone || "",
@@ -645,7 +663,7 @@ function RosterModal({ event, onClose }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#1e1b4b" }}>📊 参加者名簿</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>{event.title}　／　{rows.length > 0 ? `${event.applicants.length}グループ・${rows.length}名` : "申込者なし"}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>{event.title}　／　{rows.length > 0 ? `参加${(event.applicants || []).length}組・ボランティア${(event.volunteerApplicants || []).length}組（計${rows.length}名）` : "申込者なし"}</p>
           </div>
           <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 18, color: "#64748b" }}>×</button>
         </div>
@@ -766,6 +784,7 @@ function EmergencyForm({ event, onSave, onClose }) {
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const placeholders = {
     cancel: "例：雨天のため中止となりました。次回は〇月〇日（〇）を予定しています。",
+    postpone: "例：荒天のため〇月〇日（〇）に延期します。時間・場所は変更ありません。",
     timechange: "例：開始時間が10:00→11:00に変更となりました。",
     placechange: "例：開催場所が〇〇から〇〇に変更となりました。",
     other: "参加者への連絡内容を入力してください"
@@ -774,7 +793,8 @@ function EmergencyForm({ event, onSave, onClose }) {
     <div>
       <div style={{ background: "#fef2f2", border: "2px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 20 }}>
         <p style={{ margin: 0, fontSize: 13, color: "#dc2626", fontWeight: 600 }}>
-          ⚠️ この連絡はイベント一覧の該当カードに赤字で表示され、登録済みメールアドレスに通知されます。
+          ⚠️ この連絡はイベント一覧の該当カードに赤字で表示され、応募者の登録メールアドレスに通知されます。<br />
+          「中止」「延期」を選ぶと、グループウェアのカレンダーにもその旨が表示されます。
         </p>
       </div>
       <div style={{ marginBottom: 18 }}>
@@ -975,7 +995,12 @@ function ApplicationForm({ event, currentUserId, onSubmit, onClose }) {
 function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, onRevision, onEdit, onEmergency, onRoster, onAdminAction, onFlyer, onCancelApply, onDelete }) {
   const isApplied = event.applicants.some(a => a.id === currentUser.id);
   const isVolApplied = event.volunteerApplicants?.some(a => a.id === currentUser.id);
-  const isFull = !event.capacityUnlimited && event.applicants.length >= event.capacity;
+  // ボランティア募集は volunteerApplicants／募集人数 volunteers で数える
+  const isVolunteerEvent = event.type === "volunteer";
+  const volCount = (event.volunteerApplicants || []).length;
+  const appliedCount = isVolunteerEvent ? volCount : (event.applicants || []).length;
+  const capacityNum = (isVolunteerEvent ? (event.volunteers || event.capacity) : event.capacity) || 0;
+  const isFull = !event.capacityUnlimited && capacityNum > 0 && appliedCount >= capacityNum;
   const hasNotice = event.emergencyNotices && event.emergencyNotices.length > 0;
 
   return (
@@ -1010,7 +1035,14 @@ function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, o
 
         {/* 情報グリッド */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 14 }}>
-          {[["📅", formatDate(event.date) + " " + event.time], ["📍", event.location], ["👤", event.organizerName || event.organizer], ["👥", event.capacityUnlimited ? "定員なし" : `${event.applicants.length} / ${event.capacity}名`]].map(([icon, text]) => (
+          {[
+            ["📅", formatDate(event.date) + " " + event.time],
+            ["📍", event.location],
+            ["👤", event.organizerName || event.organizer],
+            ["👥", event.capacityUnlimited ? `${appliedCount}名（定員なし）` : `${appliedCount} / ${capacityNum}名`],
+            // イベント型でボランティアも募集している場合は応募状況を併記
+            ...(!isVolunteerEvent && event.volunteers > 0 ? [["🙋", `ボランティア ${volCount} / ${event.volunteers}名`]] : []),
+          ].map(([icon, text]) => (
             <div key={icon} style={{ background: "#f8f9ff", borderRadius: 8, padding: "7px 10px", display: "flex", gap: 5, alignItems: "center" }}>
               <span style={{ fontSize: 13 }}>{icon}</span>
               <span style={{ fontSize: 11, color: "#475569", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</span>
@@ -1022,9 +1054,9 @@ function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, o
         {!event.capacityUnlimited && (
           <div style={{ marginBottom: 14 }}>
             <div style={{ height: 5, background: "#e2e8f0", borderRadius: 3, overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 3, width: `${Math.min((event.applicants.length / event.capacity) * 100, 100)}%`, background: isFull ? "#ef4444" : "linear-gradient(90deg,#667eea,#764ba2)", transition: "width 0.5s" }} />
+              <div style={{ height: "100%", borderRadius: 3, width: `${capacityNum > 0 ? Math.min((appliedCount / capacityNum) * 100, 100) : 0}%`, background: isFull ? "#ef4444" : "linear-gradient(90deg,#667eea,#764ba2)", transition: "width 0.5s" }} />
             </div>
-            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3, textAlign: "right" }}>残り{Math.max(event.capacity - event.applicants.length, 0)}名</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3, textAlign: "right" }}>残り{Math.max(capacityNum - appliedCount, 0)}名</div>
           </div>
         )}
 
@@ -1047,6 +1079,7 @@ function EventCard({ event, currentUser, onOpenApply, onViewDetail, onApprove, o
           {currentUser.id === event.organizerId && (
             <>
               <button onClick={() => onEdit(event)} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️ 編集</button>
+              <button onClick={() => onRoster(event)} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#dcfce7", color: "#15803d", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>📊 名簿</button>
               <button onClick={() => onEmergency(event)} style={{ padding: "8px 12px", borderRadius: 10, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontSize: 12, fontWeight: 800 }}>📣 緊急連絡</button>
               <button onClick={() => generatePDF(event)} style={{ padding: "8px 10px", borderRadius: 10, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>📄 PDF</button>
             </>
@@ -1424,10 +1457,11 @@ function SignageWeather({ weather }) {
 function SignageSlide({ event, visible, fadeDuration }) {
   const color = getSCColor(event.category);
   const remaining = daysUntil(event.date);
-  const appCount = (event.applicants||[]).length;
-  const cap = event.capacity || 0;
-  const fillPct = cap > 0 ? Math.min((appCount / cap) * 100, 100) : 0;
   const isVol = event.type === "volunteer";
+  // ボランティア募集は volunteerApplicants／募集人数 volunteers で数える
+  const appCount = isVol ? (event.volunteerApplicants || []).length : (event.applicants || []).length;
+  const cap = (isVol ? (event.volunteers || event.capacity) : event.capacity) || 0;
+  const fillPct = cap > 0 ? Math.min((appCount / cap) * 100, 100) : 0;
   const latestNotice = event.emergencyNotices?.length > 0 ? event.emergencyNotices[event.emergencyNotices.length - 1] : null;
   const nt = latestNotice ? (NOTICE_TYPES[latestNotice.type] || NOTICE_TYPES.other) : null;
 
@@ -1697,6 +1731,39 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
     }
   };
 
+  // 他のユーザー宛に通知を送る（主催者・応募者など。自分以外にも届く）
+  const addNotificationFor = async (userIds, message, extra = {}) => {
+    const ids = [...new Set((Array.isArray(userIds) ? userIds : [userIds]).filter(Boolean))];
+    if (ids.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      ids.forEach(uid => {
+        batch.set(doc(collection(db, "userNotifications")), {
+          userId: uid, message, ts: Date.now(), read: false, ...extra,
+        });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("通知保存エラー:", e);
+    }
+  };
+
+  // グループウェアのカレンダーに中止・延期を反映（イベント自体は残す）
+  const markCalendarEventStatus = async (ev, statusLabel) => {
+    if (!ev?.id) return;
+    try {
+      const snap = await getDocs(collection(sharedDb, "events"));
+      const targets = snap.docs.filter(d => d.data().source === "eventnavi" && d.data().sourceId === String(ev.id));
+      await Promise.all(targets.map(d => updateDoc(doc(sharedDb, "events", d.id), {
+        title: statusLabel ? `[地域]【${statusLabel}】${ev.title}` : `[地域] ${ev.title}`,
+        eventStatus: statusLabel || "",
+      })));
+      if (targets.length === 0) console.warn("カレンダー連携データが見つかりませんでした:", ev.title);
+    } catch (e) {
+      console.error("カレンダー状態更新エラー:", e);
+    }
+  };
+
   // 全ての未読通知を既読化
   const markAllNotificationsRead = async () => {
     const unreadItems = notifications.filter(n => !n.read);
@@ -1747,18 +1814,60 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
 
   const handleApply = async (applicant) => {
     const ev = selectedEvent;
+    const isVol = applyType === "volunteer";
+    const field = isVol ? "volunteerApplicants" : "applicants";
+    const kindLabel = isVol ? "ボランティア応募" : "参加申込";
+    const currentList = ev[field] || [];
     try {
       if (ev.firestoreId) {
-        const field = applyType === "volunteer" ? "volunteerApplicants" : "applicants";
-        const current = ev[field] || [];
         await updateDoc(doc(db, "events", ev.firestoreId), {
-          [field]: [...current, { ...applicant, type: applyType }]
+          [field]: [...currentList, { ...applicant, type: applyType }]
         });
       }
     } catch (e) { console.error(e); }
     const totalNames = applicant.members.length > 1 ? `${applicant.members[0].name}さん 他${applicant.members.length - 1}名` : `${applicant.members[0].name}さん`;
-    addNotification(`「${ev.title}」への申込が完了しました（${totalNames}）`);
+    addNotification(`「${ev.title}」への${kindLabel}が完了しました（${totalNames}）`);
     showToast(`申込完了！`, "success");
+
+    // 応募者本人に「応募受付」メール
+    const applicantEmails = [...new Set((applicant.members || []).map(m => m.email).filter(Boolean))];
+    if (applicantEmails.length > 0) {
+      sendEmailNotification({
+        type: "event-apply-received",
+        title: `${kindLabel}を受け付けました「${ev.title}」`,
+        body: `${kindLabel}を受け付けました。以下の内容で登録しています。\n\n`
+          + `【${isVol ? "募集名" : "イベント名"}】${ev.title}\n`
+          + `【開催日時】${formatDate(ev.date)} ${ev.time || ""}\n`
+          + `【開催場所】${ev.location || ""}\n`
+          + (isVol && ev.meetingPlace ? `【集合場所】${ev.meetingPlace}（${ev.meetingTime || ""} 集合〜${ev.dismissalTime || ""} 解散）\n` : "")
+          + `【お申込人数】${(applicant.members || []).length}名（${totalNames}）\n`
+          + `【主催】${ev.organizerName || ev.organizer || ""}\n`
+          + (ev.contactPerson ? `【担当者】${ev.contactPerson}${ev.contactPhone ? `（${ev.contactPhone}）` : ""}\n` : "")
+          + (ev.dressCode ? `【服装・持ち物】${ev.dressCode}\n` : "")
+          + `\n中止・延期・時間変更などの連絡は、このメールアドレスにお送りします。\n`
+          + `キャンセルは八木中ネットのイベントナビから行えます。\n\n`
+          + `※このメールは自動送信です。`,
+        emails: applicantEmails,
+        senderName: "イベントナビ",
+      });
+    }
+    // 主催者に応募が入ったことを通知（メール＋アプリ内通知）
+    if (ev.organizerId) {
+      const organizerMsg = `「${ev.title}」に${kindLabel}がありました（${totalNames}／計${currentList.length + 1}組）`;
+      addNotificationFor(ev.organizerId, `🙋 ${organizerMsg}`);
+      fetchUserEmail(ev.organizerId).then(email => {
+        if (email) sendEmailNotification({
+          type: "event-apply-organizer",
+          title: `${kindLabel}が入りました「${ev.title}」`,
+          body: `「${ev.title}」に${kindLabel}がありました。\n\n`
+            + `【申込者】${totalNames}（${(applicant.members || []).length}名）\n`
+            + `【現在の${isVol ? "ボランティア応募" : "参加申込"}】${currentList.length + 1}組\n\n`
+            + `イベントナビの「📊 名簿」から申込内容の確認・CSV出力ができます。`,
+          emails: [email],
+          senderName: "イベントナビ",
+        });
+      });
+    }
     setModalType(null); setSelectedEvent(null);
   };
 
@@ -1767,10 +1876,40 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
     try {
       if (selectedEvent && selectedEvent.firestoreId) {
         // 既存イベントの更新
+        const before = selectedEvent;
         await updateDoc(doc(db, "events", selectedEvent.firestoreId), {
           ...form, organizer: organizerDisplay, updatedAt: serverTimestamp()
         });
         showToast("イベントを更新しました", "success");
+        // 日時・場所が変わった場合は応募者に変更を通知する
+        const diffs = [];
+        if (before.date !== form.date) diffs.push(`開催日：${formatDate(before.date)} → ${formatDate(form.date)}`);
+        if ((before.time || "") !== (form.time || "")) diffs.push(`開始時間：${before.time || "未定"} → ${form.time || "未定"}`);
+        if ((before.location || "") !== (form.location || "")) diffs.push(`開催場所：${before.location || "未定"} → ${form.location || "未定"}`);
+        if ((before.meetingPlace || "") !== (form.meetingPlace || "")) diffs.push(`集合場所：${before.meetingPlace || "未定"} → ${form.meetingPlace || "未定"}`);
+        if ((before.meetingTime || "") !== (form.meetingTime || "")) diffs.push(`集合時間：${before.meetingTime || "未定"} → ${form.meetingTime || "未定"}`);
+        const changeTargets = collectApplicantEmails(before);
+        if (diffs.length > 0) {
+          // カレンダー側のタイトルも新しいイベント名に追従させる
+          const statusNotice = [...(before.emergencyNotices || [])].reverse().find(n => n.type === "cancel" || n.type === "postpone");
+          markCalendarEventStatus({ ...before, title: form.title }, statusNotice ? NOTICE_TYPES[statusNotice.type].label : null);
+          addNotificationFor(collectApplicantUserIds(before), `📝【変更】「${form.title}」— ${diffs.join(" / ")}`, { isAdminAction: true });
+          if (changeTargets.length > 0) {
+            sendEmailNotification({
+              type: "event-changed",
+              title: `内容変更のお知らせ「${form.title}」`,
+              body: `お申込みいただいた下記について、主催者により内容が変更されました。\n\n`
+                + `【名称】${form.title}\n\n`
+                + `───────────────\n【変更内容】\n${diffs.map(d => `・${d}`).join("\n")}\n───────────────\n\n`
+                + `最新の内容は八木中ネットのイベントナビからご確認ください。\n`
+                + (form.contactPerson ? `お問い合わせ：${form.contactPerson}${form.contactPhone ? `（${form.contactPhone}）` : ""}\n` : "")
+                + `\n※このメールは自動送信です。`,
+              emails: changeTargets,
+              senderName: organizerDisplay,
+            });
+            showToast(`変更内容を応募者${changeTargets.length}名に通知しました`, "success");
+          }
+        }
       } else {
         // 新規イベントの追加
         await addDoc(collection(db, "events"), {
@@ -1864,8 +2003,29 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
   // イベント承認（共通化）
   const handleApproveEvent = async (eventId) => {
     const ev = events.find(e => e.id === eventId);
-    if (ev?.firestoreId) await updateDoc(doc(db, "events", ev.firestoreId), { status: "approved" }).catch(console.error);
+    // 承認時は過去の修正依頼・非承認コメントを消す（古い指摘が残り続けるため）
+    if (ev?.firestoreId) await updateDoc(doc(db, "events", ev.firestoreId), { status: "approved", adminComment: null }).catch(console.error);
     showToast("承認しました", "success");
+    // 主催者本人に「承認されました」を個別通知（メール＋アプリ内通知）
+    if (ev?.organizerId) {
+      addNotificationFor(ev.organizerId, `✅【承認】「${ev.title}」が承認され、公開されました`, { isAdminAction: true });
+      const organizerEmail = await fetchUserEmail(ev.organizerId);
+      if (organizerEmail) {
+        sendEmailNotification({
+          type: "event-approved-organizer",
+          title: `承認されました「${ev.title}」`,
+          body: `お申請いただいた内容が、管理者（${currentUser.name}）により承認されました。\n\n`
+            + `【名称】${ev.title}\n`
+            + `【開催日時】${formatDate(ev.date)} ${ev.time || ""}\n`
+            + `【開催場所】${ev.location || ""}\n\n`
+            + `イベントナビに公開され、申込の受付が始まりました。\n`
+            + `申込状況は「📊 名簿」から確認できます。\n`
+            + `中止・延期・変更が生じた場合は「📣 緊急連絡」から応募者へ通知してください。`,
+          emails: [organizerEmail],
+          senderName: "イベントナビ",
+        });
+      }
+    }
     // グループウェアのカレンダーに「地域」イベントとして追加
     if (ev?.date && ev?.title) {
       try {
@@ -1953,18 +2113,47 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
   };
 
   const handleEmergencySave = async (notice) => {
-    const nt = NOTICE_TYPES[notice.type];
-    const newEmergencyNotices = [...(selectedEvent.emergencyNotices || []), notice];
-    setEvents(prev => prev.map(ev => ev.id === selectedEvent.id ? { ...ev, emergencyNotices: newEmergencyNotices } : ev));
-    if (selectedEvent.firestoreId) {
-      updateDoc(doc(db, "events", selectedEvent.firestoreId), { emergencyNotices: newEmergencyNotices }).catch(e => console.error("緊急連絡同期エラー:", e));
+    const ev = selectedEvent;
+    const nt = NOTICE_TYPES[notice.type] || NOTICE_TYPES.other;
+    const newEmergencyNotices = [...(ev.emergencyNotices || []), notice];
+    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, emergencyNotices: newEmergencyNotices } : e));
+    if (ev.firestoreId) {
+      updateDoc(doc(db, "events", ev.firestoreId), { emergencyNotices: newEmergencyNotices }).catch(e => console.error("緊急連絡同期エラー:", e));
     }
-    addNotification(`【緊急連絡】「${selectedEvent.title}」：${nt.icon}${nt.label} — ${notice.message.slice(0, 35)}…`);
-    showToast("緊急連絡を送信しました。参加者に通知されます", "success");
-    // 全ユーザーにメール通知（テスト用）
-    const emergencyEmails = await fetchAllUserEmails();
-    if (emergencyEmails.length > 0) {
-      sendEmailNotification({ type: "event-emergency", title: `【緊急】${selectedEvent.title}：${nt.label}`, body: notice.message, emails: emergencyEmails, senderName: "イベントナビ" });
+    addNotification(`【緊急連絡】「${ev.title}」：${nt.icon}${nt.label} — ${notice.message.slice(0, 35)}…`);
+
+    // グループウェアのカレンダーに中止・延期を表示（イベント自体は残す）
+    // 中止／延期の連絡が一度でも出ていれば、その最新のものを採用する
+    const statusNotice = [...newEmergencyNotices].reverse().find(n => n.type === "cancel" || n.type === "postpone");
+    if (statusNotice) {
+      await markCalendarEventStatus(ev, NOTICE_TYPES[statusNotice.type].label);
+    }
+
+    // 応募者（参加＋ボランティア）に通知。主催者にも控えを送る
+    const applicantEmails = collectApplicantEmails(ev);
+    const targetEmails = [...applicantEmails];
+    const organizerEmail = ev.organizerId ? await fetchUserEmail(ev.organizerId) : null;
+    if (organizerEmail && !targetEmails.includes(organizerEmail)) targetEmails.push(organizerEmail);
+    // アプリ内通知も応募者へ
+    addNotificationFor(collectApplicantUserIds(ev), `${nt.icon}【${nt.label}】「${ev.title}」— ${notice.message.slice(0, 50)}${notice.message.length > 50 ? "…" : ""}`, { isAdminAction: true });
+
+    if (targetEmails.length > 0) {
+      sendEmailNotification({
+        type: "event-emergency",
+        title: `【${nt.label}】${ev.title}`,
+        body: `お申込みいただいた下記について、主催者より${nt.label}の連絡です。\n\n`
+          + `【名称】${ev.title}\n`
+          + `【開催日時】${formatDate(ev.date)} ${ev.time || ""}\n`
+          + `【開催場所】${ev.location || ""}\n\n`
+          + `───────────────\n【${nt.label}】\n${notice.message}\n───────────────\n\n`
+          + (ev.contactPerson ? `お問い合わせ：${ev.contactPerson}${ev.contactPhone ? `（${ev.contactPhone}）` : ""}\n` : "")
+          + `\n※このメールは自動送信です。`,
+        emails: targetEmails,
+        senderName: ev.organizerName || ev.organizer || "イベントナビ",
+      });
+      showToast(`${nt.label}を送信しました（応募者${applicantEmails.length}名に通知）`, "success");
+    } else {
+      showToast(`${nt.label}を登録しました（現在、通知先の応募者はいません）`, "info");
     }
     setModalType(null); setSelectedEvent(null);
   };
@@ -2302,12 +2491,15 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                 onFlyer={ev => generateFlyerPDF(ev)}
                 onCancelApply={(ev, applicantId) => {
                   if (confirm(`「${ev.title}」の申込をキャンセルしますか？`)) {
-                    const newApplicants = ev.applicants.filter(a => a.id !== applicantId);
-                    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, applicants: newApplicants } : e));
+                    // 参加申込・ボランティア応募のどちらもキャンセルできるようにする
+                    const newApplicants = (ev.applicants || []).filter(a => a.id !== applicantId);
+                    const newVolApplicants = (ev.volunteerApplicants || []).filter(a => a.id !== applicantId);
+                    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, applicants: newApplicants, volunteerApplicants: newVolApplicants } : e));
                     if (ev.firestoreId) {
-                      updateDoc(doc(db, "events", ev.firestoreId), { applicants: newApplicants }).catch(e => console.error("申込キャンセル同期エラー:", e));
+                      updateDoc(doc(db, "events", ev.firestoreId), { applicants: newApplicants, volunteerApplicants: newVolApplicants }).catch(e => console.error("申込キャンセル同期エラー:", e));
                     }
                     addNotification(`「${ev.title}」の申込をキャンセルしました`);
+                    if (ev.organizerId) addNotificationFor(ev.organizerId, `🗑 「${ev.title}」の申込が1件キャンセルされました`);
                     showToast("申込をキャンセルしました", "info");
                   }
                 }}
@@ -2384,7 +2576,12 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
                 ["📅 開催日時", `${formatDate(selectedEvent.date)} ${selectedEvent.time}`],
                 ["📍 開催場所", selectedEvent.location],
                 ["👤 主催者", selectedEvent.organizerName || selectedEvent.organizer],
-                ["👥 定員", selectedEvent.capacityUnlimited ? "無（定員なし）" : `${selectedEvent.applicants.length} / ${selectedEvent.capacity}名`],
+                ...(selectedEvent.type === "volunteer"
+                  ? [["🙋 募集人数", `${(selectedEvent.volunteerApplicants || []).length} / ${selectedEvent.volunteers || selectedEvent.capacity}名`]]
+                  : [
+                      ["👥 定員", selectedEvent.capacityUnlimited ? `${(selectedEvent.applicants || []).length}名参加（定員なし）` : `${(selectedEvent.applicants || []).length} / ${selectedEvent.capacity}名`],
+                      ...(selectedEvent.volunteers > 0 ? [["🙋 ボランティア", `${(selectedEvent.volunteerApplicants || []).length} / ${selectedEvent.volunteers}名`]] : []),
+                    ]),
                 ...(selectedEvent.fee ? [["💴 参加費", selectedEvent.fee]] : []),
                 ...(selectedEvent.type === "volunteer" && selectedEvent.meetingPlace ? [["🗺️ 集合場所", selectedEvent.meetingPlace], ["🕐 集合時間", selectedEvent.meetingTime], ["🕔 解散予定", selectedEvent.dismissalTime]] : []),
                 ...(selectedEvent.contactPerson ? [["🧑‍💼 担当者", selectedEvent.contactPerson]] : []),
@@ -2420,6 +2617,7 @@ export default function EventNavi({ currentUser: externalUser, onBackToHome }) {
               {(currentUser.id === selectedEvent.organizerId || currentUser.role === "admin") && (
                 <>
                   <button onClick={() => { setSelectedEvent(selectedEvent); setModalType("edit"); }} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#f1f5f9", color: "#475569", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>✏️ 編集</button>
+                  {currentUser.role !== "admin" && <button onClick={() => setRosterEvent(selectedEvent)} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#dcfce7", color: "#15803d", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📊 名簿</button>}
                   <button onClick={() => setModalType("emergency")} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📣 緊急連絡</button>
                   <button onClick={() => generateFlyerPDF(selectedEvent)} style={{ flex: 1, padding: "11px", borderRadius: 11, border: "none", background: "#fef3c7", color: "#b45309", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>📄 フライヤー印刷</button>
                 </>

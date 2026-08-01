@@ -30,10 +30,13 @@ export default async function handler(req, res) {
       "notice": "【八木中ネット】",
       // イベントナビ
       "event-approved": "【イベントナビ】",
-      "event-approved-organizer": "【イベントナビ】", // 旧名互換
+      "event-approved-organizer": "【イベントナビ】", // 主催者宛の承認通知
       "event-revision": "【イベントナビ】",
       "event-rejected": "【イベントナビ】",
       "event-new": "【イベントナビ】",
+      "event-apply-received": "【イベントナビ】",
+      "event-apply-organizer": "【イベントナビ】",
+      "event-changed": "【イベントナビ】",
       "event-emergency": "【イベントナビ】",
       // 見守りナビ（将来用）
       "mimamori": "【見守りナビ】",
@@ -114,6 +117,9 @@ function buildHtml(type, title, body, senderName) {
     "event-revision": "イベントナビ",
     "event-rejected": "イベントナビ",
     "event-new": "イベントナビ",
+    "event-apply-received": "イベントナビ",
+    "event-apply-organizer": "イベントナビ",
+    "event-changed": "イベントナビ",
     "event-emergency": "イベントナビ",
     "mimamori": "見守りナビ",
   }[type] || "八木中ネット";
@@ -125,6 +131,9 @@ function buildHtml(type, title, body, senderName) {
     "event-revision": "#d97706",
     "event-rejected": "#dc2626",
     "event-new": "#2563eb",
+    "event-apply-received": "#2563eb",
+    "event-apply-organizer": "#2563eb",
+    "event-changed": "#d97706",
     "event-emergency": "#dc2626",
     "mimamori": "#16a34a",
   }[type] || "#2563eb";
