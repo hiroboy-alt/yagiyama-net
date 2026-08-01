@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { db, storage } from "./firebase";
-import { collection, doc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, writeBatch, query, where } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { MASTER, CHUGAKU } from "./master.js";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -173,23 +174,17 @@ const USERS = [
   { id:"u10", name:"加藤 誠", nickname:"かとう", role:"一般", avatar:"👨", grade:"3年", club:"サッカー部", district:"南町", email:"" },
 ];
 
-// 送り先カテゴリ（重要お知らせ用）
+// 送り先カテゴリ（お知らせの宛先）
+// 選択肢は master.js の登録マスターから生成する。ここを独自に書くと
+// 登録値（例「八木山本町1丁目」）と送り先（例「八木山本町」）がずれ、誰にも届かなくなる。
 const NOTICE_TARGETS = [
   { id:"all", label:"全体", icon:"📢", subs:[] },
-  { id:"grade", label:"学年", icon:"🎒", subs:[
-    { id:"grade1", label:"1年" },{ id:"grade2", label:"2年" },{ id:"grade3", label:"3年" },
-  ]},
-  { id:"club", label:"部活", icon:"⚽", subs:[
-    { id:"club_soccer", label:"サッカー部" },{ id:"club_baseball", label:"野球部" },
-    { id:"club_basketball", label:"バスケ部" },{ id:"club_volleyball", label:"バレー部" },
-    { id:"club_tennis", label:"テニス部" },{ id:"club_brass", label:"吹奏楽部" },
-    { id:"club_art", label:"美術部" },{ id:"club_science", label:"科学部" },
-  ]},
-  { id:"district", label:"地区", icon:"🏘️", subs:[
-    { id:"dist_yagiyama", label:"八木山本町" },{ id:"dist_midorigaoka", label:"緑ヶ丘" },
-    { id:"dist_minamimachi", label:"南町" },{ id:"dist_higashi", label:"八木山東" },
-    { id:"dist_minami", label:"八木山南" },
-  ]},
+  { id:"grade", label:"学年", icon:"🎒",
+    subs: (MASTER.grades[CHUGAKU] || ["1年","2年","3年"]).map(g => ({ id:`grade_${g}`, label:g })) },
+  { id:"club", label:"部活", icon:"⚽",
+    subs: MASTER.clubs.filter(c => c !== "なし").map(c => ({ id:`club_${c}`, label:c })) },
+  { id:"district", label:"地区", icon:"🏘️",
+    subs: MASTER.districts.map(d => ({ id:`dist_${d}`, label:d })) },
   { id:"honbu", label:"本部役員", icon:"👑", subs:[] },
   { id:"unei", label:"運営委員会", icon:"🏛️", subs:[] },
 ];
@@ -200,6 +195,38 @@ const SCHOOL_ROLES = ["校長","教頭","教務主任","先生"];
 const UNEI_ROLES = [...HONBU_ROLES, ...SCHOOL_ROLES, "委員長"];
 const canPostImportant = (role) => HONBU_ROLES.includes(role) || SCHOOL_ROLES.includes(role);
 const canPostNormal = (role) => UNEI_ROLES.includes(role);
+
+// お知らせの宛先に、そのユーザーが該当するか判定する
+// （メール通知・未読バッジの対象を絞るために使用）
+const matchesNoticeTarget = (user, target) => {
+  if (!user) return false;
+  if (!target || !target.id || target.id === "all") return true; // 宛先未指定・全体は全員
+  const id = String(target.id);
+  const label = target.label || "";
+  const children = user.children || [];
+  if (id === "honbu") return HONBU_ROLES.includes(user.role);
+  if (id === "unei") return UNEI_ROLES.includes(user.role);
+  if (id.startsWith("grade")) {
+    // 八木山中学校に在籍する子の学年で判定（学校未登録の旧データは学年のみで判定）
+    return children.some(c => c.grade === label && (!c.school || c.school === CHUGAKU));
+  }
+  if (id.startsWith("club")) return children.some(c => c.club === label);
+  if (id.startsWith("dist")) {
+    const d = user.district || "";
+    if (!d) return false;
+    // 旧データの宛先「八木山本町」が登録値「八木山本町1丁目」に一致するよう前方一致も許容
+    return d === label || d.startsWith(label) || label.startsWith(d);
+  }
+  return true; // 未知の宛先は取りこぼしを防ぐため全員に通知する
+};
+
+// そのお知らせが自分宛で、かつ未読か
+const isNoticeUnreadFor = (notice, user, readRecords) => {
+  if (!notice || !user) return false;
+  if (!matchesNoticeTarget(user, notice.target)) return false;
+  const readers = (readRecords && readRecords[notice.id]) || [];
+  return !readers.some(r => r.userId === user.id);
+};
 
 // カレンダー予定カテゴリ
 const EVENT_CATEGORIES = [
@@ -353,14 +380,19 @@ function Header({ title, onBack, onHome, right, noBanner=false, themeFrom="#0f17
 // ============================================================
 // ホーム画面
 // ============================================================
-function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogout, onOpenApp }) {
+function HomeScreen({ currentUser, notices, messages, dmMessages = {}, events, onNavigate, onLogout, onOpenApp, chatReads = {}, readRecords = {} }) {
   const latestNotice = notices[0];
-  // 未読カウント：チャンネルごとの最終既読タイムスタンプより新しいメッセージのみ（自分の投稿・デモは除く）
-  const totalUnread = Object.entries(messages).reduce((sum, [chId, msgs]) => {
-    const chReadKey = `chReadTs_${currentUser.id}_${chId}`;
-    const chLastRead = parseInt(localStorage.getItem(chReadKey) || "0", 10);
-    return sum + msgs.filter(m => m.ts >= DEMO_READ_CUTOFF_TS && m.ts > chLastRead && m.userId !== currentUser.id).length;
-  }, 0);
+  // 未読カウント：最終既読時刻より新しいメッセージのみ（自分の投稿・デモは除く）
+  const countUnread = (msgs, chId) => {
+    const lastRead = chatReads[chId] || DEMO_READ_CUTOFF_TS;
+    return msgs.filter(m => m.ts >= DEMO_READ_CUTOFF_TS && m.ts > lastRead && m.userId !== currentUser.id).length;
+  };
+  // チャンネルとDMの両方を合計する（DMは従来カウントされていなかった）
+  const channelUnread = Object.entries(messages).reduce((sum, [chId, msgs]) => sum + countUnread(msgs, chId), 0);
+  const dmUnread = Object.entries(dmMessages).reduce((sum, [key, msgs]) => sum + countUnread(msgs, key), 0);
+  const totalUnread = channelUnread + dmUnread;
+  // お知らせの未読数（自分が宛先のもののみ）
+  const unreadNotices = notices.filter(n => isNoticeUnreadFor(n, currentUser, readRecords)).length;
   const [showKiyaku, setShowKiyaku] = useState(false);
   const [kiyakuPdf, setKiyakuPdf] = useState(null); // base64 dataUrl
 
@@ -421,8 +453,11 @@ function HomeScreen({ currentUser, notices, messages, events, onNavigate, onLogo
             <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#dc2626,#b91c1c)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>📣</div>
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:800, fontSize:16, color:"#0f172a" }}>お知らせ</div>
-              <div style={{ fontSize:11, color:"#94a3b8" }}>{notices.length}件</div>
+              <div style={{ fontSize:11, color:"#94a3b8" }}>{notices.length}件{unreadNotices > 0 && <span style={{ color:"#dc2626", fontWeight:700 }}> · 未読{unreadNotices}件</span>}</div>
             </div>
+            {unreadNotices > 0 && (
+              <div style={{ background:"#dc2626", color:"white", fontSize:12, fontWeight:700, minWidth:22, height:22, borderRadius:11, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px" }}>{unreadNotices}</div>
+            )}
             <span style={{ color:"#cbd5e1", fontSize:20 }}>›</span>
           </div>
           {latestNotice && (
@@ -987,12 +1022,16 @@ function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, onDelete, 
 
         {/* お知らせ一覧 */}
         <div style={{ padding:"8px 0" }}>
-          {notices.map(n=>(
-            <div key={n.id} style={{ position:"relative", background:"white", margin:"6px 16px", borderRadius:14, padding:"16px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", borderLeft:n.important?"4px solid #dc2626":"4px solid transparent" }}>
+          {notices.map(n=>{
+            const isForMe = matchesNoticeTarget(currentUser, n.target);
+            const isUnread = isNoticeUnreadFor(n, currentUser, readRecords);
+            return (
+            <div key={n.id} style={{ position:"relative", background:isUnread?"#fffbeb":"white", margin:"6px 16px", borderRadius:14, padding:"16px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", borderLeft:n.important?"4px solid #dc2626":"4px solid transparent" }}>
               <div onClick={()=>openDetail(n)} style={{ cursor:"pointer" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6, flexWrap:"wrap" }}>
+                  {isUnread && <div style={{ display:"inline-block", background:"#dc2626", color:"white", fontSize:10, fontWeight:800, padding:"2px 8px", borderRadius:6 }}>未読</div>}
                   {n.important && <div style={{ display:"inline-block", background:"#fef2f2", color:"#dc2626", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>重要</div>}
-                  {n.target && <div style={{ display:"inline-block", background:"#eff6ff", color:"#0284c7", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>{n.target.label}</div>}
+                  {n.target && <div style={{ display:"inline-block", background:isForMe?"#eff6ff":"#f8fafc", color:isForMe?"#0284c7":"#94a3b8", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>{n.target.label}{!isForMe && "（対象外）"}</div>}
                 </div>
                 <div style={{ fontWeight:700, fontSize:15, color:"#0f172a", marginBottom:4, paddingRight:isAdmin?60:0 }}>{n.title}</div>
                 <div style={{ fontSize:12, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:6 }}>{n.body}</div>
@@ -1002,7 +1041,8 @@ function NoticesScreen({ notices, onBack, onHome, currentUser, onAdd, onDelete, 
                 <button onClick={(e)=>{ e.stopPropagation(); if(confirm(`「${n.title}」を削除しますか？`)) onDelete(n.id); }} style={{ position:"absolute", top:12, right:12, background:"#fef2f2", border:"none", color:"#dc2626", fontSize:11, fontWeight:700, padding:"5px 10px", borderRadius:8, cursor:"pointer" }}>🗑 削除</button>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       )}
@@ -5271,11 +5311,29 @@ function ChatRoomView({ channelId, channelName, channelDesc, messages, onSend, c
   );
 }
 
-function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, members=[] }) {
+function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser, onBack, onHome, members=[], chatReads={}, markChatRead=()=>{} }) {
   const [tab, setTab] = useState("channels");
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeDM, setActiveDM] = useState(null);
   const [openCats, setOpenCats] = useState({}); // 折りたたみ制御
+
+  // 未読数（チャンネル・DM共通）。最終既読より新しく、自分以外の発言のみ数える
+  const unreadOf = (chId, msgs) => {
+    const lastRead = chatReads[chId] || DEMO_READ_CUTOFF_TS;
+    return (msgs || []).filter(m => m.ts >= DEMO_READ_CUTOFF_TS && m.ts > lastRead && m.userId !== currentUser.id).length;
+  };
+  const dmKeyOf = (userId) => [currentUser.id, userId].sort().join("_");
+  const dmUnreadOf = (userId) => unreadOf(dmKeyOf(userId), dmMessages[dmKeyOf(userId)]);
+  const dmTotalUnread = Object.entries(dmMessages).reduce((s, [k, m]) => s + unreadOf(k, m), 0);
+  const channelTotalUnread = visibleChannelsUnread();
+  function visibleChannelsUnread() {
+    return CHANNELS.filter(ch => canAccessChannel(ch, currentUser))
+      .reduce((s, ch) => s + unreadOf(ch.id, messages[ch.id]), 0);
+  }
+  // 未読バッジの共通描画
+  const UnreadBadge = ({ n, color="#0284c7" }) => n > 0 ? (
+    <div style={{ background:color, color:"white", fontSize:10, fontWeight:700, minWidth:18, height:18, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", flexShrink:0 }}>{n}</div>
+  ) : null;
 
   // アクセス可能なチャンネルのみ表示
   const visibleChannels = CHANNELS.filter(ch => canAccessChannel(ch, currentUser));
@@ -5286,9 +5344,10 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
     { id:"unei_member", label:"運営委員会", icon:"🏛️", filter: u => u.role==="委員長" },
     { id:"teacher", label:"先生", icon:"🎓", filter: u => u.role==="先生" },
     { id:"general", label:"一般会員", icon:"👤", filter: u => u.role==="一般", subs:[
-      { id:"gen_grade", label:"学年から探す", icon:"🎒", groupBy: u => u.grade, groups:["1年","2年","3年"] },
-      { id:"gen_club", label:"部活から探す", icon:"⚽", groupBy: u => u.club, groups:["サッカー部","野球部","バスケ部","バレー部","テニス部","吹奏楽部","美術部","科学部"] },
-      { id:"gen_district", label:"地区から探す", icon:"🏘️", groupBy: u => u.district, groups:["八木山本町","緑ヶ丘","南町","八木山東","八木山南"] },
+      // 分類は登録マスター（master.js）と揃える。独自の一覧にすると誰も該当しなくなる
+      { id:"gen_grade", label:"学年から探す", icon:"🎒", groupBy: u => u.grade, groups: MASTER.grades[CHUGAKU] },
+      { id:"gen_club", label:"部活から探す", icon:"⚽", groupBy: u => u.club, groups: MASTER.clubs.filter(c => c !== "なし") },
+      { id:"gen_district", label:"地区から探す", icon:"🏘️", groupBy: u => u.district, groups: MASTER.districts },
     ]},
   ];
 
@@ -5300,14 +5359,16 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
     const key = [currentUser.id, u.id].sort().join("_");
     const msgs = dmMessages[key]||[];
     const last = msgs[msgs.length-1];
+    const unread = dmUnreadOf(u.id);
     return (
-      <div key={u.id} onClick={()=>setActiveDM(u)} style={{ display:"flex", alignItems:"center", gap:12, padding:`10px 18px 10px ${indent}px`, background:"#fafbfc", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+      <div key={u.id} onClick={()=>{ markChatRead(dmKeyOf(u.id)); setActiveDM(u); }} style={{ display:"flex", alignItems:"center", gap:12, padding:`10px 18px 10px ${indent}px`, background:unread>0?"#eff6ff":"#fafbfc", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
         <div style={{ width:38, height:38, borderRadius:"50%", background:"linear-gradient(135deg,#475569,#64748b)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{u.avatar}</div>
         <div style={{ flex:1, overflow:"hidden" }}>
-          <div style={{ fontWeight:600, fontSize:13, color:"#0f172a" }}>{u.name}</div>
+          <div style={{ fontWeight:unread>0?800:600, fontSize:13, color:"#0f172a" }}>{u.name}</div>
           <div style={{ fontSize:11, color:"#94a3b8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{last?(last.text||"📎ファイル"):ROLES.find(r=>r.code===u.role)?.label}</div>
         </div>
         {last&&<div style={{ fontSize:10, color:"#94a3b8", flexShrink:0 }}>{formatTime(last.ts)}</div>}
+        <UnreadBadge n={unread}/>
       </div>
     );
   };
@@ -5329,8 +5390,10 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
     <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#f0f4f8" }}>
       <Header title="💬 チャット" onBack={onBack} onHome={onHome}/>
       <div style={{ display:"flex", background:"white", borderBottom:"1px solid #f1f5f9", flexShrink:0 }}>
-        {[{id:"channels",label:"チャンネル"},{id:"dm",label:"ダイレクト"}].map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, padding:"12px 8px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:tab===t.id?700:400, color:tab===t.id?"#0284c7":"#94a3b8", borderBottom:tab===t.id?"2px solid #0284c7":"2px solid transparent" }}>{t.label}</button>
+        {[{id:"channels",label:"チャンネル",n:channelTotalUnread},{id:"dm",label:"ダイレクト",n:dmTotalUnread}].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, padding:"12px 8px", border:"none", background:"transparent", cursor:"pointer", fontSize:13, fontWeight:tab===t.id?700:400, color:tab===t.id?"#0284c7":"#94a3b8", borderBottom:tab===t.id?"2px solid #0284c7":"2px solid transparent", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            {t.label}<UnreadBadge n={t.n}/>
+          </button>
         ))}
       </div>
       <div style={{ flex:1, overflow:"auto" }}>
@@ -5339,11 +5402,9 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
           const last = msgs[msgs.length-1];
           const readOnly = !canWriteChannel(ch, currentUser);
           // チャンネルごとの未読カウント（自分の投稿・デモは除く）
-          const chReadKey = `chReadTs_${currentUser.id}_${ch.id}`;
-          const chLastRead = parseInt(localStorage.getItem(chReadKey) || "0", 10);
-          const unread = msgs.filter(m => m.ts >= DEMO_READ_CUTOFF_TS && m.ts > chLastRead && m.userId !== currentUser.id).length;
+          const unread = unreadOf(ch.id, msgs);
           return (
-            <div key={ch.id} onClick={()=>{ localStorage.setItem(chReadKey, String(Date.now())); setActiveChannel(ch); }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+            <div key={ch.id} onClick={()=>{ markChatRead(ch.id); setActiveChannel(ch); }} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 18px", background:unread>0?"#eff6ff":"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
               <div style={{ width:50, height:50, borderRadius:14, background:"linear-gradient(135deg,#1e293b,#334155)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>{ch.icon}</div>
               <div style={{ flex:1, overflow:"hidden" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -5376,14 +5437,16 @@ function ChatScreen({ messages, dmMessages, onSendChannel, onSendDM, currentUser
                     const key = [currentUser.id, u.id].sort().join("_");
                     const msgs = dmMessages[key]||[];
                     const last = msgs[msgs.length-1];
+                    const unread = dmUnreadOf(u.id);
                     return (
-                      <div key={u.id} onClick={()=>setActiveDM(u)} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 18px", background:"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
+                      <div key={u.id} onClick={()=>{ markChatRead(key); setActiveDM(u); }} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 18px", background:unread>0?"#eff6ff":"white", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}>
                         <div style={{ width:44, height:44, borderRadius:"50%", background:"linear-gradient(135deg,#334155,#475569)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{u.avatar}</div>
                         <div style={{ flex:1, overflow:"hidden" }}>
-                          <div style={{ fontWeight:700, fontSize:14, color:"#0f172a" }}>{u.name}</div>
+                          <div style={{ fontWeight:unread>0?800:700, fontSize:14, color:"#0f172a" }}>{u.name}</div>
                           <div style={{ fontSize:12, color:"#94a3b8", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{last?(last.text||"📎ファイル"):""}</div>
                         </div>
                         {last&&<div style={{ fontSize:10, color:"#94a3b8", flexShrink:0 }}>{formatTime(last.ts)}</div>}
+                        <UnreadBadge n={unread}/>
                       </div>
                     );
                   })}
@@ -5473,6 +5536,9 @@ export default function GroupwareApp({ firebaseUser, onBackToHome, onOpenApp }) 
       grade: firebaseUser.children?.[0]?.grade || "",
       club: firebaseUser.children?.[0]?.club || "",
       district: firebaseUser.district || "",
+      // お知らせの宛先判定に使用（子ども全員分の学年・部活で判定するため）
+      children: firebaseUser.children || [],
+      category: firebaseUser.category || "",
     };
   });
   const [screen, setScreen] = useState("home");
@@ -5554,22 +5620,53 @@ export default function GroupwareApp({ firebaseUser, onBackToHome, onOpenApp }) 
     return unsub;
   }, []);
 
-  // 初回アクセス時：未設定の既読時刻のみデモカットオフで初期化
-  // （新規ユーザー＝既存メッセージが全て未読として正しくバッジ表示される）
-  // （既存ユーザー＝既に開封済みのチャンネルの既読時刻は尊重される）
+  // チャット既読時刻: Firestoreで管理（端末をまたいで未読バッジが同期される）
+  // 形式: chatReads/{userId}_{channelId} = { userId, channelId, ts }
+  const [chatReads, setChatReads] = useState({});
   useEffect(() => {
     if (!currentUser?.id) return;
-    const initKey = `chatInitDoneV2_${currentUser.id}`;
-    if (localStorage.getItem(initKey)) return;
-    const cutoff = String(DEMO_READ_CUTOFF_TS);
-    Object.keys(INITIAL_MESSAGES).forEach(chId => {
-      const k = `chReadTs_${currentUser.id}_${chId}`;
-      if (!localStorage.getItem(k)) {
-        // 未設定のみカットオフで初期化（既存値は尊重）
-        localStorage.setItem(k, cutoff);
+    const q = query(collection(db, "chatReads"), where("userId", "==", currentUser.id));
+    const unsub = onSnapshot(q, (snap) => {
+      const map = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.channelId) map[data.channelId] = data.ts || 0;
+      });
+      setChatReads(map);
+    }, (err) => console.error("既読時刻の読み込みエラー:", err));
+    return unsub;
+  }, [currentUser?.id]);
+
+  // 既読時刻を記録（チャンネル・DM共通。channelIdにはDMキーも入る）
+  const markChatRead = (channelId) => {
+    if (!currentUser?.id || !channelId) return;
+    setChatReads(prev => ({ ...prev, [channelId]: Date.now() })); // 画面上は即時反映
+    setDoc(doc(db, "chatReads", `${currentUser.id}_${channelId}`), {
+      userId: currentUser.id, channelId, ts: Date.now(),
+    }).catch(e => console.error("既読記録エラー:", e));
+  };
+
+  // 旧方式（localStorage）の既読時刻を一度だけFirestoreへ引き継ぐ
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const migKey = `chatReadsMigrated_${currentUser.id}`;
+    if (localStorage.getItem(migKey)) return;
+    try {
+      const batch = writeBatch(db);
+      let count = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const prefix = `chReadTs_${currentUser.id}_`;
+        if (!key || !key.startsWith(prefix)) continue;
+        const channelId = key.slice(prefix.length);
+        const ts = parseInt(localStorage.getItem(key) || "0", 10);
+        if (!channelId || !ts) continue;
+        batch.set(doc(db, "chatReads", `${currentUser.id}_${channelId}`), { userId: currentUser.id, channelId, ts });
+        count++;
       }
-    });
-    localStorage.setItem(initKey, "1");
+      if (count > 0) batch.commit().catch(e => console.error("既読時刻の移行エラー:", e));
+      localStorage.setItem(migKey, "1");
+    } catch (e) { console.error("既読時刻の移行エラー:", e); }
   }, [currentUser?.id]);
   const [events, setEventsLocal] = useState([]);
   const eventsLoaded = useRef(false);
@@ -5855,15 +5952,28 @@ export default function GroupwareApp({ firebaseUser, onBackToHome, onOpenApp }) 
 
   const handleAddNotice = async (title, body, user, important=false, target=null, attachments=[]) => {
     setNotices(prev=>[{ id:`n_${Date.now()}`, title, body, author:user.nickname, ts:Date.now(), important, target, attachments }, ...prev]);
-    // メール通知を送信（Firestore usersから動的取得、投稿者本人は除外）
+    // メール通知を送信（Firestore usersから動的取得、投稿者本人と対象外は除外）
     try {
       const snap = await getDocs(collection(db, "users"));
-      const ptaEmails = snap.docs
-        .map(d => ({ uid: d.id, ...d.data() }))
+      const all = snap.docs.map(d => {
+        const data = d.data();
+        return {
+          uid: d.id,
+          email: data.email,
+          role: data.role || data.ptaRole || "一般",
+          district: data.district || "",
+          children: data.children || [],
+        };
+      });
+      const ptaEmails = all
         .filter(u => u.uid !== currentUser.id && u.email)
+        .filter(u => matchesNoticeTarget({ ...u, id: u.uid }, target)) // 宛先に該当する人だけ
         .map(u => u.email);
       if (ptaEmails.length > 0) {
-        sendEmailNotification({ type: "notice", title, body, emails: ptaEmails, senderName: currentUser.name });
+        const targetLabel = target && target.id && target.id !== "all" ? `【${target.label}向け】\n\n` : "";
+        sendEmailNotification({ type: "notice", title, body: targetLabel + body, emails: ptaEmails, senderName: currentUser.name });
+      } else {
+        console.warn("お知らせの通知対象者がいません:", target);
       }
     } catch (e) { console.error("メール送信先取得エラー:", e); }
   };
@@ -5875,10 +5985,10 @@ export default function GroupwareApp({ firebaseUser, onBackToHome, onOpenApp }) 
   return (
     <div style={{ height:"100svh", display:"flex", flexDirection:"column", fontFamily:"Hiragino Kaku Gothic ProN, YuGothic, sans-serif", overflow:"hidden" }}>
       <style>{CSS}</style>
-      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} onOpenApp={onOpenApp}/>}
+      {screen==="home" && <HomeScreen currentUser={currentUser} notices={notices} messages={messages} dmMessages={dmMessages} events={events} onNavigate={setScreen} onLogout={()=>{ if(onBackToHome) onBackToHome(); else setCurrentUser(null); }} onOpenApp={onOpenApp} chatReads={chatReads} readRecords={readRecords}/>}
       {screen==="notices" && <NoticesScreen notices={notices} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} currentUser={currentUser} onAdd={handleAddNotice} onDelete={handleDeleteNotice} readRecords={readRecords} onMarkRead={handleMarkRead} surveys={surveys} setSurveys={setSurveys} recruits={recruits} setRecruits={setRecruits} members={registeredMembers}/>}
       {screen==="calendar" && <CalendarScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} schoolHolidays={schoolHolidays} addSchoolHoliday={addSchoolHoliday} removeSchoolHoliday={removeSchoolHoliday}/>}
-      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} members={registeredMembers}/>}
+      {screen==="chat" && <ChatScreen messages={messages} dmMessages={dmMessages} onSendChannel={handleSendChannel} onSendDM={handleSendDM} currentUser={currentUser} onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} members={registeredMembers} chatReads={chatReads} markChatRead={markChatRead}/>}
       {screen==="admin" && <AdminScreen onBack={()=>setScreen("home")} onHome={()=>setScreen("home")} events={events} setEvents={setEvents} currentUser={currentUser} channels={channels} setChannels={setChannels} documents={documents} setDocuments={setDocuments} publishForms={publishForms} setPublishForms={setPublishForms}/>}
     </div>
   );
